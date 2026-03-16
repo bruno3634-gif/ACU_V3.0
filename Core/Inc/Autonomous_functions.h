@@ -11,8 +11,6 @@
 #include "main.h"
 
 
-startup_sequence_state_t initial_sequence_state = Watchdog_check;
-
 void initial_sequence();
 void continuous_monitoring();
 

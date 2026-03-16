@@ -8,10 +8,12 @@
 #include "Autonomous_functions.h"
 
 extern Main_state_machine_t Vehicle_state_machine;
+startup_sequence_state_t initial_sequence_status = Watchdog_check;
+extern struct car t24;
 
 void initial_sequence() {
 
-	switch (initial_sequence_state) {
+	switch (initial_sequence_status) {
 	case Watchdog_check:
 		if (t24.SDC_feedback == 1) {
 			t24.HW_WDT_Enable = 0;

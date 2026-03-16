@@ -147,6 +147,7 @@ struct car {
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
 	uint8_t SDC_feedback;
+	float chip_temp;
 };
 
 
