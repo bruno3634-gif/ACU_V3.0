@@ -1,0 +1,13 @@
+# build folders
+build/
+debug/
+# object files
+*.o
+*.obj
+# binaries
+*.elf
+*.bin
+# test binaries and generated CI reports
+Tests/test_initial_sequence
+Tests/test_output.txt
+Tests/test_results.xml
