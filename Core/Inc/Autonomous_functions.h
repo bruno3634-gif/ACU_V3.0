@@ -8,7 +8,7 @@
 #ifndef INC_AUTONOMOUS_FUNCTIONS_H_
 #define INC_AUTONOMOUS_FUNCTIONS_H_
 
-#include "app_types.h"
+#include "main.h"
 
 /**
  * @brief  Run one tick of the initial-sequence state machine.

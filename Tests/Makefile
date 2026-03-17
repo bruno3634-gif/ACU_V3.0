@@ -5,7 +5,7 @@
 #   cd Tests && make clean    # remove artefacts
 
 CC      = gcc
-CFLAGS  = -Wall -Wextra -std=c11 -I../Core/Inc
+CFLAGS  = -Wall -Wextra -std=c11 -I stubs -I../Core/Inc
 
 SRC     = test_initial_sequence.c ../Core/Src/Autonomous_functions.c
 BIN     = test_initial_sequence

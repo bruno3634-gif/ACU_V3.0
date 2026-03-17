@@ -13,7 +13,6 @@
 #include <string.h>
 
 /* Pull in the types and the function under test without any HAL dependency. */
-#include "../Core/Inc/app_types.h"
 #include "../Core/Inc/Autonomous_functions.h"
 
 /* ── Minimal test framework ──────────────────────────────────────────────── */
@@ -75,7 +74,7 @@ static initial_seq_ctx_t make_ctx(void)
  *  Watchdog_check tests
  * ══════════════════════════════════════════════════════════════════════════ */
 
-TEST(test_watchdog_sdc_closed_disables_wdt_and_advances)
+TEST(test_watchdog_activates_wdt_and_advances_when_sdc_closed)
 {
     initial_seq_ctx_t     ctx = make_ctx();
     initial_seq_inputs_t  in  = make_inputs();
@@ -86,14 +85,15 @@ TEST(test_watchdog_sdc_closed_disables_wdt_and_advances)
 
     initial_sequence(&ctx, &in, &out);
 
-    ASSERT(out.HW_WDT_Enable == 0);
+    /* WDT must be ACTIVE (1) — confirmed working, keep it running. */
+    ASSERT(out.HW_WDT_Enable == 1);
     ASSERT(ctx.state == Pressure_check);
     ASSERT(ctx.state_entry_time_ms == 100);
     ASSERT(out.sequence_complete == 0);
     ASSERT(out.vehicle_state != EMERGENCY);
 }
 
-TEST(test_watchdog_sdc_open_before_timeout_stays_in_state)
+TEST(test_watchdog_activates_wdt_while_sdc_open)
 {
     initial_seq_ctx_t     ctx = make_ctx();
     initial_seq_inputs_t  in  = make_inputs();
@@ -105,8 +105,8 @@ TEST(test_watchdog_sdc_open_before_timeout_stays_in_state)
 
     initial_sequence(&ctx, &in, &out);
 
-    ASSERT(ctx.state == Watchdog_check);   /* should not advance or error */
-    ASSERT(out.HW_WDT_Enable == 1);        /* WDT must still be enabled */
+    ASSERT(ctx.state == Watchdog_check);    /* should not advance or error */
+    ASSERT(out.HW_WDT_Enable == 1);         /* WDT must be activated each tick */
     ASSERT(out.vehicle_state != EMERGENCY);
 }
 
@@ -386,7 +386,7 @@ TEST(test_full_happy_path)
     out = make_outputs();
     initial_sequence(&ctx, &in, &out);
     ASSERT(ctx.state == Pressure_check);
-    ASSERT(out.HW_WDT_Enable == 0);
+    ASSERT(out.HW_WDT_Enable == 1);  /* WDT stays active after confirmation */
 
     /* --- Tick 3: Pressure_check, sufficient pressure ------------------ */
     in.SDC_feedback        = 1;
@@ -429,8 +429,8 @@ int main(void)
     printf("\n=== initial_sequence() unit tests ===\n\n");
 
     /* Watchdog_check */
-    test_watchdog_sdc_closed_disables_wdt_and_advances_run();
-    test_watchdog_sdc_open_before_timeout_stays_in_state_run();
+    test_watchdog_activates_wdt_and_advances_when_sdc_closed_run();
+    test_watchdog_activates_wdt_while_sdc_open_run();
     test_watchdog_sdc_open_at_timeout_goes_to_error_run();
     test_watchdog_sdc_open_just_before_timeout_stays_run();
 

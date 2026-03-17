@@ -13,9 +13,9 @@
  * State transitions:
  *
  *  Watchdog_check
- *    ├─ SDC closed (SDC_feedback == 1)
- *    │    → disable WDT, advance to Pressure_check
- *    └─ timeout (> INITIAL_SEQ_SDC_TIMEOUT_MS) without SDC closing
+ *    ├─ activate WDT every tick (HW_WDT_Enable = 1)
+ *    ├─ SDC feedback == 1: WDT pulse confirmed working → advance to Pressure_check
+ *    └─ timeout (>= INITIAL_SEQ_SDC_TIMEOUT_MS) without SDC feedback
  *         → Error_state
  *
  *  Pressure_check
@@ -47,14 +47,16 @@ void initial_sequence(initial_seq_ctx_t *ctx,
     switch (ctx->state) {
 
     case Watchdog_check:
+        /* Activate (or keep active) the hardware watchdog every tick. */
+        outputs->HW_WDT_Enable = 1;
         if (inputs->SDC_feedback == 1) {
-            /* SDC closed: stop toggling the hardware watchdog and proceed. */
-            outputs->HW_WDT_Enable = 0;
+            /* SDC closed: WDT pulse confirmed working. Advance without
+             * disabling the watchdog — it must remain active throughout. */
             ctx->state = Pressure_check;
             ctx->state_entry_time_ms = inputs->timestamp_ms;
         } else if ((inputs->timestamp_ms - ctx->state_entry_time_ms) >=
                    INITIAL_SEQ_SDC_TIMEOUT_MS) {
-            /* SDC did not close within the allowed window. */
+            /* SDC did not close within the allowed window: WDT not working. */
             ctx->state = Error_state;
         }
         break;
