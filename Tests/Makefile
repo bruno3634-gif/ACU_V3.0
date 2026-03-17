@@ -19,4 +19,4 @@ $(BIN): $(SRC)
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	rm -f $(BIN)
+	rm -f $(BIN) test_output.txt test_results.xml

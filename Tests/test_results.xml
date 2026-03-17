@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="18" failures="0" errors="0">
+  <testsuite name="initial_sequence" tests="18" failures="0" errors="0" time="0">
+    <testcase name="test_watchdog_activates_wdt_and_advances_when_sdc_closed" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_watchdog_activates_wdt_while_sdc_open" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_watchdog_sdc_open_at_timeout_goes_to_error" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_watchdog_sdc_open_just_before_timeout_stays" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_ok_advances_to_hv_activation" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_front_low_goes_to_error" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_rear_low_goes_to_error" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_both_above_threshold_pass" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_hv_activation_sets_ignition_request" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_hv_activation_ignition_confirmed_advances" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_hv_activation_timeout_goes_to_error" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_hv_activation_just_before_timeout_waits" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_correlation_within_tolerance_completes" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_correlation_zero_difference_completes" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_correlation_excess_difference_goes_to_error" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_pressure_correlation_reverse_direction_also_checked" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_error_state_sets_vehicle_emergency" classname="initial_sequence" time="0">
+    </testcase>
+    <testcase name="test_full_happy_path" classname="initial_sequence" time="0">
+    </testcase>
+  </testsuite>
+</testsuites>

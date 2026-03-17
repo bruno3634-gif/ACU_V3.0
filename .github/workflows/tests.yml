@@ -1,0 +1,153 @@
+name: Unit Tests
+
+# Run on every push and pull-request for any branch.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read   # checkout only
+
+jobs:
+  test:
+    name: Build & Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Get the source ───────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Compile & run ────────────────────────────────────────────────
+      # continue-on-error keeps the workflow alive so we can still upload
+      # the report even when tests fail.  We re-check the outcome at the end.
+      - name: Build and run tests
+        id: tests
+        continue-on-error: true
+        working-directory: Tests
+        shell: bash
+        run: |
+          set -o pipefail
+          make 2>&1 | tee test_output.txt
+
+      # ── 3. Generate JUnit XML ───────────────────────────────────────────
+      # GitHub Actions (and many CI dashboards) can display JUnit XML natively.
+      - name: Generate JUnit XML report
+        if: always()
+        working-directory: Tests
+        run: |
+          python3 - << 'PYEOF'
+          import os
+
+          with open("test_output.txt") as fh:
+              lines = fh.readlines()
+
+          # Each test line looks like:
+          #   "  <name padded to >=55 chars>OK\n"  (passed)
+          #   "  <name padded to >=55 chars>\n"    (failed)
+          cases = []
+          for line in lines:
+              stripped = line.rstrip()
+              if not stripped.startswith("  test_"):
+                  continue
+              body = stripped[2:]          # drop the 2-space indent
+              if body.endswith("OK"):
+                  name   = body[:-2].rstrip()
+                  passed = True
+              else:
+                  name   = body.strip()
+                  passed = False
+              cases.append((name, passed))
+
+          n_total = len(cases)
+          n_fail  = sum(1 for _, ok in cases if not ok)
+
+          xml = [
+              '<?xml version="1.0" encoding="UTF-8"?>',
+              f'<testsuites tests="{n_total}" failures="{n_fail}" errors="0">',
+              f'  <testsuite name="initial_sequence" tests="{n_total}"'
+              f' failures="{n_fail}" errors="0" time="0">',
+          ]
+          for name, ok in cases:
+              xml.append(f'    <testcase name="{name}" classname="initial_sequence" time="0">')
+              if not ok:
+                  xml.append(f'      <failure message="{name} failed"/>')
+              xml.append("    </testcase>")
+          xml += ["  </testsuite>", "</testsuites>"]
+
+          with open("test_results.xml", "w") as fh:
+              fh.write("\n".join(xml) + "\n")
+
+          print(f"JUnit XML written: {n_total} tests, {n_fail} failure(s)")
+          PYEOF
+
+      # ── 4. Write a Markdown summary visible on the Actions run page ─────
+      - name: Write job summary
+        if: always()
+        working-directory: Tests
+        run: |
+          python3 - << 'PYEOF'
+          import os
+
+          with open("test_output.txt") as fh:
+              lines = fh.readlines()
+
+          cases = []
+          for line in lines:
+              stripped = line.rstrip()
+              if not stripped.startswith("  test_"):
+                  continue
+              body = stripped[2:]
+              if body.endswith("OK"):
+                  cases.append((body[:-2].rstrip(), True))
+              else:
+                  cases.append((body.strip(), False))
+
+          n_total = len(cases)
+          n_fail  = sum(1 for _, ok in cases if not ok)
+
+          if n_fail == 0:
+              headline = f"✅ All {n_total} tests passed"
+          else:
+              headline = f"❌ {n_fail} of {n_total} tests FAILED"
+
+          md = [
+              "## 🧪 Unit Test Results",
+              "",
+              f"> {headline}",
+              "",
+              "| Test | Result |",
+              "|---|:---:|",
+          ]
+          for name, ok in cases:
+              icon = "✅ OK" if ok else "❌ FAIL"
+              md.append(f"| `{name}` | {icon} |")
+
+          if n_fail:
+              md += ["", "### ❌ Failed tests", ""]
+              for name, ok in cases:
+                  if not ok:
+                      md.append(f"- `{name}`")
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout")
+          with open(summary_path, "w") as fh:
+              fh.write("\n".join(md) + "\n")
+          PYEOF
+
+      # ── 5. Upload artifacts ─────────────────────────────────────────────
+      # Raw console output + JUnit XML — downloadable from the Actions run.
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            Tests/test_output.txt
+            Tests/test_results.xml
+
+      # ── 6. Fail the job if any test failed ──────────────────────────────
+      - name: Fail if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "One or more tests failed. Check the report above."
+          exit 1

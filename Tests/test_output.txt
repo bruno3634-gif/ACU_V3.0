@@ -1,0 +1,24 @@
+
+=== initial_sequence() unit tests ===
+
+  test_watchdog_activates_wdt_and_advances_when_sdc_closedOK
+  test_watchdog_activates_wdt_while_sdc_open             OK
+  test_watchdog_sdc_open_at_timeout_goes_to_error        OK
+  test_watchdog_sdc_open_just_before_timeout_stays       OK
+  test_pressure_ok_advances_to_hv_activation             OK
+  test_pressure_front_low_goes_to_error                  OK
+  test_pressure_rear_low_goes_to_error                   OK
+  test_pressure_both_above_threshold_pass                OK
+  test_hv_activation_sets_ignition_request               OK
+  test_hv_activation_ignition_confirmed_advances         OK
+  test_hv_activation_timeout_goes_to_error               OK
+  test_hv_activation_just_before_timeout_waits           OK
+  test_pressure_correlation_within_tolerance_completes   OK
+  test_pressure_correlation_zero_difference_completes    OK
+  test_pressure_correlation_excess_difference_goes_to_errorOK
+  test_pressure_correlation_reverse_direction_also_checkedOK
+  test_error_state_sets_vehicle_emergency                OK
+  test_full_happy_path                                   OK
+
+=== Results: 41/41 passed ===
+

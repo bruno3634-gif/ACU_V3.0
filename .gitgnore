@@ -8,5 +8,7 @@ debug/
 # binaries
 *.elf
 *.bin
-# test binaries
+# test binaries and generated CI reports
 Tests/test_initial_sequence
+Tests/test_output.txt
+Tests/test_results.xml
