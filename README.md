@@ -1,6 +1,7 @@
 General fluxogram
 
-<img width="513" height="415" alt="image" src="https://github.com/user-attachments/assets/8e314ad7-2cac-46cd-864e-de195bb05cd4" />
+<img width="678" height="639" alt="image" src="https://github.com/user-attachments/assets/8c39159d-23c4-44f0-86d1-648b6a5f236f" />
+
 
 
 
