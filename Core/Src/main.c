@@ -74,6 +74,9 @@ Autonomous_System_states_t Autonomous_state = OFF;
 
 uint32_t ADC_Samples[3];
 
+/* Context for the initial-sequence state machine (reset on each new run). */
+initial_seq_ctx_t initial_seq_ctx = {Watchdog_check, 0};
+
 /* USER CODE END 0 */
 
 /**
@@ -222,9 +225,35 @@ void Handle_state() {
 
 void Handle_autonomous_state(){
 	switch (Autonomous_state) {
-		case Initial_Sequence:
-			initial_sequence();
+		case Initial_Sequence: {
+			/* Gather hardware inputs ---------------------------------------- */
+			initial_seq_inputs_t inputs;
+			inputs.SDC_feedback        = t24.SDC_feedback;
+			inputs.front_pneumatic_kPa = t24.Front_Pressure.Pneumatic;
+			inputs.rear_pneumatic_kPa  = t24.Rear_Pressure.Pneumatic;
+			inputs.ignition_status     = t24.Ignition_Status;
+			inputs.timestamp_ms        = HAL_GetTick();
+
+			/* Pre-fill outputs with current system state -------------------- */
+			initial_seq_outputs_t outputs;
+			outputs.HW_WDT_Enable    = t24.HW_WDT_Enable;
+			outputs.Ignition_Request = t24.Ignition_Request;
+			outputs.vehicle_state    = Vehicle_state_machine;
+			outputs.sequence_complete = 0;
+
+			/* Run one tick of the state machine ----------------------------- */
+			initial_sequence(&initial_seq_ctx, &inputs, &outputs);
+
+			/* Apply outputs back to the vehicle state ----------------------- */
+			t24.HW_WDT_Enable    = outputs.HW_WDT_Enable;
+			t24.Ignition_Request = outputs.Ignition_Request;
+			Vehicle_state_machine = outputs.vehicle_state;
+
+			if (outputs.sequence_complete) {
+				Autonomous_state = Monitor_sequence;
+			}
 			break;
+		}
 		case Monitor_sequence:
 			break;
 		case Finish:

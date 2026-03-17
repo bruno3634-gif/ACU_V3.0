@@ -7,38 +7,109 @@
 
 #include "Autonomous_functions.h"
 
-extern Main_state_machine_t Vehicle_state_machine;
-startup_sequence_state_t initial_sequence_status = Watchdog_check;
-extern struct car t24;
+/**
+ * @brief Run one tick of the initial-sequence state machine.
+ *
+ * State transitions:
+ *
+ *  Watchdog_check
+ *    ├─ SDC closed (SDC_feedback == 1)
+ *    │    → disable WDT, advance to Pressure_check
+ *    └─ timeout (> INITIAL_SEQ_SDC_TIMEOUT_MS) without SDC closing
+ *         → Error_state
+ *
+ *  Pressure_check
+ *    ├─ front AND rear pneumatic pressure ≥ INITIAL_SEQ_MIN_PNEUMATIC_KPA
+ *    │    → advance to HV_activation
+ *    └─ pressure insufficient
+ *         → Error_state
+ *
+ *  HV_activation
+ *    ├─ request ignition (Ignition_Request = 1) every tick
+ *    ├─ ignition confirmed (ignition_status == 1)
+ *    │    → advance to Pressure_correlation_check
+ *    └─ timeout (> INITIAL_SEQ_HV_TIMEOUT_MS) without HV coming up
+ *         → Error_state
+ *
+ *  Pressure_correlation_check
+ *    ├─ |front_pneumatic − rear_pneumatic| ≤ INITIAL_SEQ_PRESSURE_CORR_TOL_KPA
+ *    │    → sequence_complete = 1  (caller advances Autonomous_state)
+ *    └─ pressures out of correlation
+ *         → Error_state
+ *
+ *  Error_state
+ *    → set vehicle_state = EMERGENCY
+ */
+void initial_sequence(initial_seq_ctx_t *ctx,
+                      const initial_seq_inputs_t *inputs,
+                      initial_seq_outputs_t *outputs)
+{
+    switch (ctx->state) {
 
-void initial_sequence() {
+    case Watchdog_check:
+        if (inputs->SDC_feedback == 1) {
+            /* SDC closed: stop toggling the hardware watchdog and proceed. */
+            outputs->HW_WDT_Enable = 0;
+            ctx->state = Pressure_check;
+            ctx->state_entry_time_ms = inputs->timestamp_ms;
+        } else if ((inputs->timestamp_ms - ctx->state_entry_time_ms) >=
+                   INITIAL_SEQ_SDC_TIMEOUT_MS) {
+            /* SDC did not close within the allowed window. */
+            ctx->state = Error_state;
+        }
+        break;
 
-	switch (initial_sequence_status) {
-	case Watchdog_check:
-		if (t24.SDC_feedback == 1) {
-			t24.HW_WDT_Enable = 0;
-		}else{
-			// if 500ms timeout and SDC closed
-		}
-		break;
-	case Pressure_check:
+    case Pressure_check:
+        if (inputs->front_pneumatic_kPa >= INITIAL_SEQ_MIN_PNEUMATIC_KPA &&
+            inputs->rear_pneumatic_kPa  >= INITIAL_SEQ_MIN_PNEUMATIC_KPA) {
+            /* Sufficient brake pressure: safe to activate HV. */
+            ctx->state = HV_activation;
+            ctx->state_entry_time_ms = inputs->timestamp_ms;
+        } else {
+            /* Insufficient pressure: cannot proceed safely. */
+            ctx->state = Error_state;
+        }
+        break;
 
-		break;
-	case HV_activation:
+    case HV_activation:
+        /* Assert ignition request every tick until confirmed or timed out. */
+        outputs->Ignition_Request = 1;
+        if (inputs->ignition_status == 1) {
+            /* HV is now active. */
+            ctx->state = Pressure_correlation_check;
+            ctx->state_entry_time_ms = inputs->timestamp_ms;
+        } else if ((inputs->timestamp_ms - ctx->state_entry_time_ms) >=
+                   INITIAL_SEQ_HV_TIMEOUT_MS) {
+            /* HV did not come up within the allowed window. */
+            ctx->state = Error_state;
+        }
+        break;
 
-		break;
-	case Pressure_correlation_check:
+    case Pressure_correlation_check: {
+        float diff = inputs->front_pneumatic_kPa - inputs->rear_pneumatic_kPa;
+        if (diff < 0.0f) {
+            diff = -diff;
+        }
+        if (diff <= INITIAL_SEQ_PRESSURE_CORR_TOL_KPA) {
+            /* Front and rear pressures are correlated: sequence complete. */
+            outputs->sequence_complete = 1;
+        } else {
+            /* Pressure mismatch: unsafe to continue. */
+            ctx->state = Error_state;
+        }
+        break;
+    }
 
-		break;
-	case Error_state:
-		Vehicle_state_machine = EMERGENCY;
-		break;
+    case Error_state:
+        outputs->vehicle_state = EMERGENCY;
+        break;
 
-	default:
-		Vehicle_state_machine = EMERGENCY;
-		break;
-	}
+    default:
+        outputs->vehicle_state = EMERGENCY;
+        break;
+    }
 }
-void continuous_monitoring() {
 
+void continuous_monitoring(void)
+{
 }

@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "app_types.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -100,81 +100,6 @@ void Error_Handler(void);
 #define IGN_BTN_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
-
-typedef enum
-{
-  AS_STATE_OFF = 1,       // 0
-  AS_STATE_READY = 2,     // 1
-  AS_STATE_DRIVING = 3,   // 2
-  AS_STATE_EMERGENCY = 4, // 3
-  AS_STATE_FINISHED = 5   // 4
-} AS_STATE_t;
-
-typedef enum
-{
-  MANUAL,       // 0
-  ACCELERATION, // 1
-  SKIDPAD,      // 2   // 3
-  TRACKDRIVE,   // 4
-  EBS_TEST,     // 5
-  INSPECTION,   // 6
-  AUTOCROSS     // 7
-} current_mission_t;
-
-
-
-struct pressure{
-	float Pneumatic;
-	float Hydraulic;
-};
-
-struct speed{
-	uint8_t Speed;			// Km/h
-	uint8_t Target_Speed;	// Km/h
-};
-
-struct car {
-	struct pressure Rear_Pressure;
-	struct pressure Front_Pressure;
-	uint8_t Ignition_Status;					// 0 - OFF, 1 - ON     (Real from VCU)
-	uint8_t Ignition_Request;					// 0 - OFF, 1 - ON		(Request from ACU)
-	uint8_t ASMS;								// 0 - OFF, 1 - ON
-	uint8_t Emergency;							// 0 - No , 1 - Emergency
-	uint8_t Res;								// 0 - Not active, 1 - ON , 2 - Emergency
-	uint8_t HW_WDT_Enable;
-	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
-	volatile current_mission_t Current_Mission; // Current mission state
-	struct speed Speed;
-	uint8_t SDC_feedback;
-	float chip_temp;
-};
-
-
-typedef enum{
-	Start,
-	IDLE,
-	AS_ON,
-	EMERGENCY
-}Main_state_machine_t;
-
-
-typedef enum {
-	OFF,
-	Initial_Sequence,
-	Monitor_sequence,
-	Finish,
-	AS_Emergency
-}Autonomous_System_states_t;
-
-
-typedef enum{
-	Watchdog_check,
-	Pressure_check,
-	HV_activation,
-	Pressure_correlation_check,
-	Error_state
-}startup_sequence_state_t;
 
 /* USER CODE END Private defines */
 
