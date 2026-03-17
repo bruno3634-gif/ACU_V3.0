@@ -8,3 +8,5 @@ debug/
 # binaries
 *.elf
 *.bin
+# test binaries
+Tests/test_initial_sequence
