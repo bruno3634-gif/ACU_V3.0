@@ -1,5 +1,5 @@
 /*
- * app_types.h
+ * definitions.h
  *
  *  Created on: Mar 17, 2026
  *      Author: bruno
@@ -13,11 +13,11 @@
  *  For host-side unit tests the include chain is:
  *      test → Autonomous_functions.h → main.h → stm32f4xx_hal.h (stub)
  *                                             → (type defs)
- *                                             → app_types.h (this file)
+ *                                             → definitions.h (this file)
  */
 
-#ifndef INC_APP_TYPES_H_
-#define INC_APP_TYPES_H_
+#ifndef INC_DEFINITIONS_H_
+#define INC_DEFINITIONS_H_
 
 #include <stdint.h>
 
@@ -76,4 +76,4 @@ typedef struct {
   uint8_t               sequence_complete; /**< 1 = initial sequence passed. */
 } initial_seq_outputs_t;
 
-#endif /* INC_APP_TYPES_H_ */
+#endif /* INC_DEFINITIONS_H_ */

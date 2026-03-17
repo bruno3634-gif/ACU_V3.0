@@ -176,8 +176,8 @@ typedef enum{
 	Error_state
 }startup_sequence_state_t;
 
-/* app_types.h defines the initial-sequence I/O types using the enums above. */
-#include "app_types.h"
+/* definitions.h defines the initial-sequence I/O types using the enums above. */
+#include "definitions.h"
 
 /* USER CODE END Private defines */
 

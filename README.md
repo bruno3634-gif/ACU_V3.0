@@ -21,7 +21,7 @@ ACU_V3.0/
 ├── Core/
 │   ├── Inc/
 │   │   ├── main.h                  # Application types, GPIO pin aliases
-│   │   ├── app_types.h             # Initial-sequence I/O types and thresholds
+│   │   ├── definitions.h           # Initial-sequence I/O types and thresholds
 │   │   └── Autonomous_functions.h  # Public API for the state machines
 │   └── Src/
 │       ├── main.c                  # Main loop, state dispatchers, HAL glue

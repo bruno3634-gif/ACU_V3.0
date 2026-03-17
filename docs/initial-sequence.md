@@ -68,7 +68,7 @@ The external watchdog circuit only closes the SDC if it sees a valid pulse withi
 | **On advance** | Move to `HV_activation` |
 | **On fail** | Move to `Error_state` immediately (no timeout — pressure must already be present) |
 
-> **Threshold:** `INITIAL_SEQ_MIN_PNEUMATIC_KPA = 500.0 kPa` (defined in `app_types.h`)
+> **Threshold:** `INITIAL_SEQ_MIN_PNEUMATIC_KPA = 500.0 kPa` (defined in `definitions.h`)
 
 ---
 
@@ -84,7 +84,7 @@ The external watchdog circuit only closes the SDC if it sees a valid pulse withi
 | **On advance** | Move to `Pressure_correlation_check` |
 | **On fail** | Move to `Error_state` |
 
-> **Timeout:** `INITIAL_SEQ_HV_TIMEOUT_MS = 5000 ms` (defined in `app_types.h`)
+> **Timeout:** `INITIAL_SEQ_HV_TIMEOUT_MS = 5000 ms` (defined in `definitions.h`)
 
 ---
 
@@ -99,7 +99,7 @@ The external watchdog circuit only closes the SDC if it sees a valid pulse withi
 | **On advance** | `sequence_complete = 1` — caller (`Handle_autonomous_state`) moves to `Monitor_sequence` |
 | **On fail** | Move to `Error_state` |
 
-> **Tolerance:** `INITIAL_SEQ_PRESSURE_CORR_TOL_KPA = 100.0 kPa` (defined in `app_types.h`)
+> **Tolerance:** `INITIAL_SEQ_PRESSURE_CORR_TOL_KPA = 100.0 kPa` (defined in `definitions.h`)
 
 ---
 
@@ -188,7 +188,7 @@ Stopping the WDT causes the external watchdog circuit to open the SDC, which rem
 |---|---|
 | `Core/Src/Autonomous_functions.c` | State machine logic (hardware-free) |
 | `Core/Inc/Autonomous_functions.h` | Public API declaration |
-| `Core/Inc/app_types.h` | `initial_seq_ctx_t`, `initial_seq_inputs_t`, `initial_seq_outputs_t`, thresholds |
+| `Core/Inc/definitions.h` | `initial_seq_ctx_t`, `initial_seq_inputs_t`, `initial_seq_outputs_t`, thresholds |
 | `Core/Inc/main.h` | All application enums (`startup_sequence_state_t`, etc.) and GPIO aliases |
 | `Core/Src/main.c` | `Handle_autonomous_state()` — hardware glue, calls `initial_sequence()` |
 | `Tests/test_initial_sequence.c` | 18 unit tests covering every state and boundary |

@@ -16,7 +16,7 @@ test_initial_sequence.c
        └─ main.h
             ├─ stm32f4xx_hal.h   ← stub (from Tests/stubs/)
             ├─ application types (enums, structs)
-            └─ app_types.h       ← initial_seq_* types and thresholds
+            └─ definitions.h     ← initial_seq_* types and thresholds
 ```
 
 ---
