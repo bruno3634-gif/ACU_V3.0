@@ -11,6 +11,10 @@ AS fluxogram
 
 
 
+Link sequencias : 
+
+https://drive.google.com/file/d/1Pxhdf3rhUqh33yAzXRT9BX9MB5i-E7ke/view?usp=sharing
+
 Initial sequence
 
 
@@ -21,3 +25,5 @@ Initial sequence
 continuous sequence
 
 ![alt text](image-3.png)
+
+
