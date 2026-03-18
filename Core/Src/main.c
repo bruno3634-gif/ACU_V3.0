@@ -74,6 +74,8 @@ Autonomous_System_states_t Autonomous_state = OFF;
 
 uint32_t ADC_Samples[3];
 
+float temporary_temp = 0;
+
 /* USER CODE END 0 */
 
 /**
@@ -134,6 +136,8 @@ int main(void)
 
   HAL_TIM_Base_Start(&htim8);
 
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -142,6 +146,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		Peripheral_aquisition();
+		temporary_temp = t24.chip_temp;
 		Handle_state();
 		toggle_wdt();
 	}
@@ -275,10 +281,8 @@ void toggle_wdt(){
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if(hadc->Instance == ADC1) {
-        // O buffer está cheio!
-        // Aqui podes copiar os dados para a tua struct t24
-        //t24.Front_Pressure.Hydraulic = (float)ADC_Samples[0];
-        //t24.Rear_Pressure.Hydraulic  = (float)ADC[1];
+        t24.Front_Pressure.Pneumatic = (float)ADC_Samples[0];
+        t24.Rear_Pressure.Pneumatic  = (float)ADC[1];
         t24.chip_temp = GetTemperature((uint16_t *) ADC_Samples[2]);
     }
 }

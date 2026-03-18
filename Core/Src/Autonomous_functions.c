@@ -40,5 +40,5 @@ void initial_sequence() {
 	}
 }
 void continuous_monitoring() {
-
+	// CAN Messages timeouts
 }
