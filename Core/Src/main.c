@@ -40,8 +40,15 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TS_CAL1_ADDR ((uint16_t*)0x1FFF7A2C)   // ADC raw value @30°C
-#define TS_CAL2_ADDR ((uint16_t*)0x1FFF7A2E)   // ADC raw value @110°C
+#define TS_CAL1_ADDR        ((uint16_t*)0x1FFF7A2C)   // Raw @ 30°C, Vdda=3.3V
+#define TS_CAL2_ADDR        ((uint16_t*)0x1FFF7A2E)   // Raw @ 110°C, Vdda=3.3V
+//#define VREFINT_CAL_ADDR    ((uint16_t*)0x1FFF7A2A)   // Raw Vref @ Vdda=3.3V
+
+#define TEMP_CAL1_TEMPC     30.0f
+#define TEMP_CAL2_TEMPC     110.0f
+
+uint16_t raw_vref;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -64,7 +71,7 @@ void Handle_autonomous_state();
 void Handle_Emergency();
 void Peripheral_aquisition();
 void toggle_wdt();
-float GetTemperature(uint16_t adc_raw);
+float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -72,7 +79,7 @@ float GetTemperature(uint16_t adc_raw);
 Main_state_machine_t Vehicle_state_machine = IDLE;
 Autonomous_System_states_t Autonomous_state = OFF;
 
-uint32_t ADC_Samples[3];
+uint32_t ADC_Samples[4];
 
 float temporary_temp = 0;
 
@@ -132,7 +139,7 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Samples, 3);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Samples, 4);
 
   HAL_TIM_Base_Start(&htim8);
 
@@ -281,26 +288,35 @@ void toggle_wdt(){
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if(hadc->Instance == ADC1) {
-        t24.Front_Pressure.Pneumatic = (float)ADC_Samples[0];
-        t24.Rear_Pressure.Pneumatic  = (float)ADC[1];
-        t24.chip_temp = GetTemperature((uint16_t *) ADC_Samples[2]);
+        t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion
+        t24.Rear_Pressure.Pneumatic  = ADC_Samples[1]; // missing conversion
+        t24.chip_temp = GetTemperature(ADC_Samples[2], ADC_Samples[3]);
     }
 }
 
 
-float GetTemperature(uint16_t adc_raw)
+/* USER CODE BEGIN 4 */
+float GetTemperature(uint16_t raw_temp, uint16_t raw_vref)
 {
+    if (raw_vref == 0) return 0.0f;
+
+    // 1. Calcular VDDA real usando a calibração de fábrica do VREF (3.3V)
+    // VDDA = 3.3V * (VREFINT_CAL / Raw_VREF)
+    float vdda = 3.3f * ((float)(*VREFINT_CAL_ADDR) / (float)raw_vref);
+
+    // 2. Ajustar o valor lido da temperatura para a escala de 3.3V
+    // (A calibração TS_CAL foi feita a 3.3V, se o teu VDDA for diferente, o valor "mexe")
+    float raw_equiv_3v3 = (float)raw_temp * (vdda / 3.3f);
+
+    // 3. Interpolação Linear
     float ts_cal1 = (float)(*TS_CAL1_ADDR);
     float ts_cal2 = (float)(*TS_CAL2_ADDR);
 
-    float temperature;
-
-    temperature = ((adc_raw - ts_cal1) * (110.0f - 30.0f)) /
-                  (ts_cal2 - ts_cal1) + 30.0f;
+    float temperature = ((raw_equiv_3v3 - ts_cal1) * (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC)
+                        / (ts_cal2 - ts_cal1)) + TEMP_CAL1_TEMPC;
 
     return temperature;
 }
-
 
 /* USER CODE END 4 */
 
