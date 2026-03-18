@@ -42,3 +42,15 @@ void initial_sequence() {
 void continuous_monitoring() {
 	// CAN Messages timeouts
 }
+
+
+
+int ASSI_controll(uint8_t gpio_state, uint8_t ASSI_state){
+
+	/*
+	 * bit 0 -> Yellow
+	 * bit 1 -> Blue
+	 */
+}
+
+
