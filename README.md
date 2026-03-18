@@ -1,10 +1,29 @@
 General fluxogram
 
-<img width="513" height="415" alt="image" src="https://github.com/user-attachments/assets/8e314ad7-2cac-46cd-864e-de195bb05cd4" />
+<img width="678" height="639" alt="image" src="https://github.com/user-attachments/assets/8c39159d-23c4-44f0-86d1-648b6a5f236f" />
+
 
 
 
 AS fluxogram
 
 <img width="1010" height="577" alt="image" src="https://github.com/user-attachments/assets/de70d125-3d66-4332-8db7-6795870800f2" />
+
+
+
+Link sequencias : 
+
+https://drive.google.com/file/d/1Pxhdf3rhUqh33yAzXRT9BX9MB5i-E7ke/view?usp=sharing
+
+Initial sequence
+
+
+![alt text](image-2.png)
+
+
+
+continuous sequence
+
+![alt text](image-3.png)
+
 
