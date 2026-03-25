@@ -176,6 +176,15 @@ typedef enum{
 	Error_state
 }startup_sequence_state_t;
 
+
+
+struct can_timeouts{
+	unsigned long vcu;
+	unsigned long res;
+	unsigned long jetson;
+};
+
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

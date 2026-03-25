@@ -30,6 +30,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "Autonomous_functions.h"
+#include "hardware_abstraction.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,6 +73,8 @@ void Handle_Emergency();
 void Peripheral_aquisition();
 void toggle_wdt();
 float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
+void handle_uart_logs();
+void LED_indicator_controller();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -119,7 +122,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  HAL_CAN_Start(&hcan1);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -137,13 +140,13 @@ int main(void)
   MX_TIM8_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Samples, 4);
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_Samples, 4);
 
-  HAL_TIM_Base_Start(&htim8);
-
-
+	HAL_TIM_Base_Start(&htim8);
+	HAL_TIM_Base_Start_IT(&htim2);
 
   /* USER CODE END 2 */
 
@@ -157,6 +160,8 @@ int main(void)
 		temporary_temp = t24.chip_temp;
 		Handle_state();
 		toggle_wdt();
+		handle_uart_logs();
+		LED_indicator_controller();
 	}
   /* USER CODE END 3 */
 }
@@ -231,92 +236,131 @@ void Handle_state() {
 	}
 }
 
-
-
-void Handle_autonomous_state(){
+void Handle_autonomous_state() {
 	switch (Autonomous_state) {
-		case Initial_Sequence:
-			initial_sequence();
-			break;
-		case Monitor_sequence:
-			break;
-		case Finish:
-			/***
-			 * Ensure car stoped safely
-			 */
-			if(t24.ASMS == 0){
-			}
-			break;
-		case AS_Emergency:
-			Vehicle_state_machine = EMERGENCY;
-			break;
-		default:
-			Vehicle_state_machine = EMERGENCY;
-			break;
+	case Initial_Sequence:
+		initial_sequence();
+		break;
+	case Monitor_sequence:
+		break;
+	case Finish:
+		/***
+		 * Ensure car stoped safely
+		 */
+		if (t24.ASMS == 0) {
+		}
+		break;
+	case AS_Emergency:
+		Vehicle_state_machine = EMERGENCY;
+		break;
+	default:
+		Vehicle_state_machine = EMERGENCY;
+		break;
 	}
 }
 
-
-void Handle_Emergency(){
+void Handle_Emergency() {
 	t24.HW_WDT_Enable = 0;
 	t24.Ignition_Request = 0;
 	HAL_GPIO_WritePin(Solenoid2_GPIO_Port, Solenoid2_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(Solenoid1_GPIO_Port, Solenoid1_Pin, GPIO_PIN_RESET);
 }
 
-
-
-
-void Peripheral_aquisition(){
+void Peripheral_aquisition() {
 	t24.ASMS = HAL_GPIO_ReadPin(ASMS_GPIO_Port, ASMS_Pin);
-	t24.SDC_feedback = HAL_GPIO_ReadPin(SDC_FEEDBACK_GPIO_Port, SDC_FEEDBACK_Pin);
+	t24.SDC_feedback = HAL_GPIO_ReadPin(SDC_FEEDBACK_GPIO_Port,
+	SDC_FEEDBACK_Pin);
 }
 
-void toggle_wdt(){
+void toggle_wdt() {
 	static unsigned long wdt_time = 0;
 
-	if(HAL_GetTick() - wdt_time >= 10){
-		if(t24.HW_WDT_Enable == 1){
-			HAL_GPIO_TogglePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin);
-			wdt_time = HAL_GetTick();
+	if (HAL_GetTick() - wdt_time >= 10) {
+		if (t24.HW_WDT_Enable == 1) {
+			//HAL_GPIO_TogglePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin);
+			HAL_GPIO_WritePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin, GPIO_PIN_SET);
+			wdt_time = millis();
 		}
+	}
+
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+	if (hadc->Instance == ADC1) {
+		t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion
+		t24.Rear_Pressure.Pneumatic = ADC_Samples[1]; // missing conversion
+		t24.chip_temp = GetTemperature(ADC_Samples[2], ADC_Samples[3]);
+	}
+}
+
+/* USER CODE BEGIN 4 */
+float GetTemperature(uint16_t raw_temp, uint16_t raw_vref) {
+	if (raw_vref == 0)
+		return 0.0f;
+
+	// 1. Calcular VDDA real usando a calibração de fábrica do VREF (3.3V)
+	// VDDA = 3.3V * (VREFINT_CAL / Raw_VREF)
+	float vdda = 3.3f * ((float) (*VREFINT_CAL_ADDR) / (float) raw_vref);
+
+	// 2. Ajustar o valor lido da temperatura para a escala de 3.3V
+	// (A calibração TS_CAL foi feita a 3.3V, se o teu VDDA for diferente, o valor "mexe")
+	float raw_equiv_3v3 = (float) raw_temp * (vdda / 3.3f);
+
+	// 3. Interpolação Linear
+	float ts_cal1 = (float) (*TS_CAL1_ADDR);
+	float ts_cal2 = (float) (*TS_CAL2_ADDR);
+
+	float temperature = ((raw_equiv_3v3 - ts_cal1)
+			* (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC) / (ts_cal2 - ts_cal1))
+			+ TEMP_CAL1_TEMPC;
+
+	return temperature;
+}
+
+void handle_uart_logs() {
+	static unsigned long timestamp = 0;
+
+	if (millis() - timestamp > 500) {
+		uint8_t UART_TxBuffer[] = "Hello World\r\n";
+
+		HAL_UART_Transmit_DMA(&huart2, UART_TxBuffer,
+				sizeof(UART_TxBuffer) - 1);
+		timestamp = millis();
+	}
+}
+
+void LED_indicator_controller(){
+	static unsigned long timestamp = 0;
+
+	if(millis() - timestamp >= 500){
+		HAL_GPIO_TogglePin(HB_GPIO_Port, HB_Pin);
+		timestamp = millis();
 	}
 
 }
 
 
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    if(hadc->Instance == ADC1) {
-        t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion
-        t24.Rear_Pressure.Pneumatic  = ADC_Samples[1]; // missing conversion
-        t24.chip_temp = GetTemperature(ADC_Samples[2], ADC_Samples[3]);
-    }
-}
-
-
-/* USER CODE BEGIN 4 */
-float GetTemperature(uint16_t raw_temp, uint16_t raw_vref)
+/***
+ * tmr callback
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (raw_vref == 0) return 0.0f;
+    if (htim->Instance == TIM2)
+    {
+    	/*static unsigned long prev_value = 0;
+    	static unsigned long value = 0;
+        if(value != 0){
+        	prev_value = value;
+        }
+        value = HAL_GetTick();
+*/
+    }
+    	CAN_TxMailBox_TypeDef  TXmailbox;
 
-    // 1. Calcular VDDA real usando a calibração de fábrica do VREF (3.3V)
-    // VDDA = 3.3V * (VREFINT_CAL / Raw_VREF)
-    float vdda = 3.3f * ((float)(*VREFINT_CAL_ADDR) / (float)raw_vref);
-
-    // 2. Ajustar o valor lido da temperatura para a escala de 3.3V
-    // (A calibração TS_CAL foi feita a 3.3V, se o teu VDDA for diferente, o valor "mexe")
-    float raw_equiv_3v3 = (float)raw_temp * (vdda / 3.3f);
-
-    // 3. Interpolação Linear
-    float ts_cal1 = (float)(*TS_CAL1_ADDR);
-    float ts_cal2 = (float)(*TS_CAL2_ADDR);
-
-    float temperature = ((raw_equiv_3v3 - ts_cal1) * (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC)
-                        / (ts_cal2 - ts_cal1)) + TEMP_CAL1_TEMPC;
-
-    return temperature;
+  //  	HAL_CAN_AddTxMessage(hcan, pHeader, aData, pTxMailbox)
 }
+
 
 /* USER CODE END 4 */
 
