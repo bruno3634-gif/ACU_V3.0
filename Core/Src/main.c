@@ -103,6 +103,8 @@ int main(void)
 	t24.Rear_Pressure.Pneumatic = 0;
 	t24.Ignition_Status = 0;
 	t24.Ignition_Request = 0;
+	t24.Solenoid1_Request = 0;
+	t24.Solenoid2_Request = 0;
 	t24.Speed.Speed = 0;
 	t24.Speed.Target_Speed = 0;
 	t24.Emergency = 0;
@@ -231,12 +233,14 @@ void Handle_state() {
 	}
 }
 
-
-
 void Handle_autonomous_state(){
 	switch (Autonomous_state) {
 		case Initial_Sequence:
-			initial_sequence();
+			initial_sequence(&t24, &initial_sequence_status, &Vehicle_state_machine);
+
+			if (initial_sequence_status == Error_state) {
+				Vehicle_state_machine = EMERGENCY;
+			}
 			break;
 		case Monitor_sequence:
 			break;
@@ -256,16 +260,14 @@ void Handle_autonomous_state(){
 	}
 }
 
-
 void Handle_Emergency(){
 	t24.HW_WDT_Enable = 0;
 	t24.Ignition_Request = 0;
+	t24.Solenoid1_Request = 0;
+	t24.Solenoid2_Request = 0;
 	HAL_GPIO_WritePin(Solenoid2_GPIO_Port, Solenoid2_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(Solenoid1_GPIO_Port, Solenoid1_Pin, GPIO_PIN_RESET);
 }
-
-
-
 
 void Peripheral_aquisition(){
 	t24.ASMS = HAL_GPIO_ReadPin(ASMS_GPIO_Port, ASMS_Pin);
@@ -284,8 +286,6 @@ void toggle_wdt(){
 
 }
 
-
-
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if(hadc->Instance == ADC1) {
         t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion
@@ -293,7 +293,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
         t24.chip_temp = GetTemperature(ADC_Samples[2], ADC_Samples[3]);
     }
 }
-
 
 /* USER CODE BEGIN 4 */
 float GetTemperature(uint16_t raw_temp, uint16_t raw_vref)

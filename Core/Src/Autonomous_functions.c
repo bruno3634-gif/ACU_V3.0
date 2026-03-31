@@ -2,42 +2,121 @@
  * Autonomous_functions.c
  *
  *  Created on: Mar 14, 2026
- *      Author: bruno
+ *      Author: bruno, Vasco
  */
 
 #include "Autonomous_functions.h"
 #include "hardware_abstraction.h"
 
-extern Main_state_machine_t Vehicle_state_machine;
-startup_sequence_state_t initial_sequence_status = Watchdog_check;
-extern struct car t24;
+#define TIMEOUT_SDC_MS 500
+#define TIMEOUT_PRESSURE_MS 2000
+#define TIMEOUT_HV_MS 5000
+#define EBS_MIN_BAR 6.0f
+#define EBS_MAX_BAR 10.0f
+#define EBS_HYD_GAIN 10.0f
+#define EBS_HYD_UNLOADED_BAR 1.0f
 
-void initial_sequence() {
+// macros
+#define IN_RANGE(val, min, max) ((val) > (min) && (val) < (max))
+#define IS_CORRELATED(hyd, pneu) ((hyd) > (EBS_HYD_GAIN * (pneu)))
+#define IS_UNLOADED(hyd) ((hyd) < EBS_HYD_UNLOADED_BAR)
 
-	switch (initial_sequence_status) {
-	case Watchdog_check:
-		if (t24.SDC_feedback == 1) {
-			t24.HW_WDT_Enable = 0;
-		} else {
-			// if 500ms timeout and SDC closed
-		}
-		break;
-	case Pressure_check:
 
-		break;
-	case HV_activation:
+static uint32_t state_timer = 0;
 
-		break;
-	case Pressure_correlation_check:
+void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Main_state_machine_t *Vehicle_state_machine) {
+	switch (*seq_status) {
+		case Watchdog_check:
+			if (t24->SDC_feedback == 1) {
+				t24->HW_WDT_Enable = 1;
+				state_timer = millis();
+				*seq_status = Pressure_check;
+			} else if (check_timeout(state_timer, TIMEOUT_SDC_MS)) {
+				*seq_status = Error_state;
+			}
+			break;
 
-		break;
-	case Error_state:
-		Vehicle_state_machine = EMERGENCY;
-		break;
+		/*
+		 * BP1 & BP2 > 6 (bar)
+		 * BP1 & BP2 < 10 (bar)
+		 * */
+		case Pressure_check:
+			if (IN_RANGE(t24->Front_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR) && IN_RANGE(t24->Rear_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
 
-	default:
-		Vehicle_state_machine = EMERGENCY;
-		break;
+				state_timer = millis();
+				*seq_status = HV_activation;
+			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
+				*seq_status = Error_state;
+			}
+			break;
+
+		case HV_activation:
+			t24->Ignition_Request = 1;
+			if (t24->Ignition_Status) {
+				state_timer = millis();
+				*seq_status = Pressure_correlation_check;
+			} else if (check_timeout(state_timer, TIMEOUT_HV_MS)) {
+				*seq_status = Error_state;
+			}
+			break;
+
+		case Pressure_correlation_check:
+
+			/*
+			 * BP5 > 10 * BP1
+			 * BP6 > 10 * BP2
+			 * */
+			if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic)
+				&& IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic)) {
+
+				if (t24->Ignition_Status == 1) {
+					state_timer = millis();
+					*seq_status = MB1_Check;
+				}
+
+			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
+				*seq_status = Error_state;
+			}
+			break;
+
+		case MB1_Check:
+			// Open MB1, Close MB2
+			t24->Solenoid1_Request = 1;
+			t24->Solenoid2_Request = 0;
+
+			if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic)
+				&& IS_UNLOADED(t24->Rear_Pressure.Hydraulic)) {
+				state_timer = millis();
+				*seq_status = MB2_Check;
+			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
+				*seq_status = Error_state;
+			}
+			break;
+
+		case MB2_Check:
+			// Close MB1, Open MB2
+			t24->Solenoid1_Request = 0;
+			t24->Solenoid2_Request = 1;
+
+
+			if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic)
+				&& IS_UNLOADED(t24->Front_Pressure.Hydraulic)) {
+
+				t24->Autonomous_State = AS_STATE_READY;
+				t24->Solenoid1_Request = 0;
+				t24->Solenoid2_Request = 0;
+			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
+				*seq_status = Error_state;
+			}
+			break;
+
+		case Error_state:
+			*Vehicle_state_machine = EMERGENCY;
+			break;
+
+		default:
+			*seq_status = Error_state;
+			break;
 	}
 }
 void continuous_monitoring() {
@@ -97,5 +176,12 @@ int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
 		break;
 	}
 
+}
+
+bool check_timeout(uint32_t start_time, uint32_t limit) {
+	if (millis() - start_time > limit) {
+		return true;
+	}
+	return false;
 }
 

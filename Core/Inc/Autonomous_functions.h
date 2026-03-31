@@ -10,10 +10,8 @@
 
 #include "main.h"
 
-
-void initial_sequence();
+void initial_sequence(struct car *v, startup_sequence_state_t *seq_status, Main_state_machine_t *Vehicle_state_machine);
 void continuous_monitoring();
 int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state);
-
 
 #endif /* INC_AUTONOMOUS_FUNCTIONS_H_ */
