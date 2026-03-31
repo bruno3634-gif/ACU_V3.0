@@ -143,6 +143,8 @@ struct car {
 	uint8_t Emergency;							// 0 - No , 1 - Emergency
 	uint8_t Res;								// 0 - Not active, 1 - ON , 2 - Emergency
 	uint8_t HW_WDT_Enable;
+	uint8_t Solenoid1_Request;					// 0 - OFF, 1 - ON
+	uint8_t Solenoid2_Request;					// 0 - OFF, 1 - ON
 	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
@@ -167,12 +169,13 @@ typedef enum {
 	AS_Emergency
 }Autonomous_System_states_t;
 
-
 typedef enum{
 	Watchdog_check,
 	Pressure_check,
 	HV_activation,
 	Pressure_correlation_check,
+	MB1_Check, // Solenoide 1
+	MB2_Check, // Solenoide 2
 	Error_state
 }startup_sequence_state_t;
 
