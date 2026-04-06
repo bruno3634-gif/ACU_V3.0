@@ -69,10 +69,10 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOB
 #define LED2_Pin GPIO_PIN_2
 #define LED2_GPIO_Port GPIOB
-#define Solenoid2_Pin GPIO_PIN_12
-#define Solenoid2_GPIO_Port GPIOB
-#define Solenoid1_Pin GPIO_PIN_13
-#define Solenoid1_GPIO_Port GPIOB
+#define Rear_Solenoid_Pin GPIO_PIN_12
+#define Rear_Solenoid_GPIO_Port GPIOB
+#define Front_Solenoid_Pin GPIO_PIN_13
+#define Front_Solenoid_GPIO_Port GPIOB
 #define ASSI_YELLOW_Pin GPIO_PIN_14
 #define ASSI_YELLOW_GPIO_Port GPIOB
 #define ASSI_BLUE_Pin GPIO_PIN_15
@@ -137,16 +137,19 @@ struct speed{
 struct car {
 	struct pressure Rear_Pressure;
 	struct pressure Front_Pressure;
+	uint8_t front_solenoid;
+	uint8_t rear_solenoid;
 	uint8_t Ignition_Status;					// 0 - OFF, 1 - ON     (Real from VCU)
 	uint8_t Ignition_Request;					// 0 - OFF, 1 - ON		(Request from ACU)
 	uint8_t ASMS;								// 0 - OFF, 1 - ON
 	uint8_t Emergency;							// 0 - No , 1 - Emergency
 	uint8_t Res;								// 0 - Not active, 1 - ON , 2 - Emergency
 	uint8_t HW_WDT_Enable;
+	uint8_t ignition_pin_state;
+	uint8_t SDC_feedback;
 	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
-	uint8_t SDC_feedback;
 	float chip_temp;
 };
 

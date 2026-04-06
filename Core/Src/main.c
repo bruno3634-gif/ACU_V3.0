@@ -67,10 +67,11 @@ struct car t24;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
-void Handle_state();
+void Handle_state(uint8_t prev_asms_state);
 void Handle_autonomous_state();
 void Handle_Emergency();
 void Peripheral_aquisition();
+void Peripheral_actuation();
 void toggle_wdt();
 float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
 void handle_uart_logs();
@@ -89,12 +90,11 @@ float temporary_temp = 0;
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
+	/* USER CODE BEGIN 1 */
 
 	/***
 	 * Var initialization
@@ -114,106 +114,108 @@ int main(void)
 	t24.Autonomous_State = AS_STATE_OFF;
 	t24.HW_WDT_Enable = 1;
 
-  /* USER CODE END 1 */
+	/* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE BEGIN Init */
-  HAL_CAN_Start(&hcan1);
-  /* USER CODE END Init */
+	/* USER CODE BEGIN Init */
+	HAL_CAN_Start(&hcan1);
+	/* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE BEGIN SysInit */
+	uint8_t prev_ASMS = 0;
+	/* USER CODE END SysInit */
 
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_CAN1_Init();
-  MX_TIM8_Init();
-  MX_USART2_UART_Init();
-  MX_I2C1_Init();
-  MX_TIM2_Init();
-  /* USER CODE BEGIN 2 */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_DMA_Init();
+	MX_ADC1_Init();
+	MX_CAN1_Init();
+	MX_TIM8_Init();
+	MX_USART2_UART_Init();
+	MX_I2C1_Init();
+	MX_TIM2_Init();
+	/* USER CODE BEGIN 2 */
 
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_Samples, 4);
 
 	HAL_TIM_Base_Start(&htim8);
 	HAL_TIM_Base_Start_IT(&htim2);
+	uint8_t ASSI_leds_control_signal = 0;
 
-  /* USER CODE END 2 */
+	/* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
 	while (1) {
-    /* USER CODE END WHILE */
+		/* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+		/* USER CODE BEGIN 3 */
+		prev_ASMS = t24.ASMS;
 		Peripheral_aquisition();
 		temporary_temp = t24.chip_temp;
-		Handle_state();
+		Handle_state(prev_ASMS);
 		toggle_wdt();
 		handle_uart_logs();
 		LED_indicator_controller();
+		ASSI_control(ASSI_leds_control_signal, Autonomous_state);
+		Peripheral_actuation();
+
 	}
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void) {
+	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 
-  /** Configure the main internal regulator output voltage
-  */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	/** Configure the main internal regulator output voltage
+	 */
+	__HAL_RCC_PWR_CLK_ENABLE();
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 70;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 4;
+	RCC_OscInitStruct.PLL.PLLN = 70;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+	RCC_OscInitStruct.PLL.PLLQ = 5;
+	RCC_OscInitStruct.PLL.PLLR = 2;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+		Error_Handler();
+	}
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+		Error_Handler();
+	}
 }
 
 /* USER CODE BEGIN 4 */
-void Handle_state() {
+void Handle_state(uint8_t prev_asms_state) {
 	switch (Vehicle_state_machine) {
 	case Start:
 		t24.HW_WDT_Enable = 1;
@@ -221,8 +223,13 @@ void Handle_state() {
 		Vehicle_state_machine = IDLE;
 		break;
 	case IDLE:
-		//ASMS = 1 advance
-		Vehicle_state_machine = AS_ON;
+		//ASMS = change from 0 to 1
+		if (t24.ASMS == 1 && prev_asms_state == 0
+				&& t24.ignition_pin_state == 0) {
+			Vehicle_state_machine = AS_ON;
+		} else {
+			// do not break;
+		}
 		break;
 	case AS_ON:
 		Autonomous_state = Initial_Sequence;
@@ -262,23 +269,33 @@ void Handle_autonomous_state() {
 void Handle_Emergency() {
 	t24.HW_WDT_Enable = 0;
 	t24.Ignition_Request = 0;
-	HAL_GPIO_WritePin(Solenoid2_GPIO_Port, Solenoid2_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(Solenoid1_GPIO_Port, Solenoid1_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Front_Solenoid_GPIO_Port, Front_Solenoid_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Rear_Solenoid_GPIO_Port, Rear_Solenoid_Pin, GPIO_PIN_RESET);
 }
 
-void Peripheral_aquisition() {
+void Peripheral_aquisition(uint8_t *assi_leds) {
 	t24.ASMS = HAL_GPIO_ReadPin(ASMS_GPIO_Port, ASMS_Pin);
 	t24.SDC_feedback = HAL_GPIO_ReadPin(SDC_FEEDBACK_GPIO_Port,
 	SDC_FEEDBACK_Pin);
+	t24.ignition_pin_state = HAL_GPIO_ReadPin(IGN_BTN_GPIO_Port, IGN_BTN_Pin);
+	*assi_leds = HAL_GPIO_ReadPin(ASSI_YELLOW_GPIO_Port, ASSI_YELLOW_Pin) << 1
+			| HAL_GPIO_ReadPin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin);
+}
+
+void Peripheral_actuation() {
+	HAL_GPIO_WritePin(Front_Solenoid_GPIO_Port, Front_Solenoid_Pin,
+			t24.front_solenoid);
+	HAL_GPIO_WritePin(Rear_Solenoid_GPIO_Port, Rear_Solenoid_Pin,
+			t24.rear_solenoid);
 }
 
 void toggle_wdt() {
 	static unsigned long wdt_time = 0;
 
-	if (HAL_GetTick() - wdt_time >= 10) {
+	if (millis() - wdt_time >= 10) {
 		if (t24.HW_WDT_Enable == 1) {
-			//HAL_GPIO_TogglePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin);
-			HAL_GPIO_WritePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin, GPIO_PIN_SET);
+			HAL_GPIO_TogglePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin);
+			//HAL_GPIO_WritePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin, GPIO_PIN_SET);
 			wdt_time = millis();
 		}
 	}
@@ -329,53 +346,47 @@ void handle_uart_logs() {
 	}
 }
 
-void LED_indicator_controller(){
+void LED_indicator_controller() {
 	static unsigned long timestamp = 0;
 
-	if(millis() - timestamp >= 500){
+	if (millis() - timestamp >= 500) {
 		HAL_GPIO_TogglePin(HB_GPIO_Port, HB_Pin);
 		timestamp = millis();
 	}
 
 }
 
-
-
 /***
  * tmr callback
  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM2)
-    {
-    	/*static unsigned long prev_value = 0;
-    	static unsigned long value = 0;
-        if(value != 0){
-        	prev_value = value;
-        }
-        value = HAL_GetTick();
-*/
-    }
-    	CAN_TxMailBox_TypeDef  TXmailbox;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim->Instance == TIM2) {
+		/*static unsigned long prev_value = 0;
+		 static unsigned long value = 0;
+		 if(value != 0){
+		 prev_value = value;
+		 }
+		 value = HAL_GetTick();
+		 */
+	}
+	CAN_TxMailBox_TypeDef TXmailbox;
 
-  //  	HAL_CAN_AddTxMessage(hcan, pHeader, aData, pTxMailbox)
+	//  	HAL_CAN_AddTxMessage(hcan, pHeader, aData, pTxMailbox)
 }
-
 
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
+	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1) {
 	}
-  /* USER CODE END Error_Handler_Debug */
+	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT

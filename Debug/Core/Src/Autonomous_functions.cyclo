@@ -1,3 +1,3 @@
 ../Core/Src/Autonomous_functions.c:15:6:initial_sequence	5
-../Core/Src/Autonomous_functions.c:43:6:continuous_monitoring	1
-../Core/Src/Autonomous_functions.c:55:5:ASSI_control	8
+../Core/Src/Autonomous_functions.c:43:6:continuous_monitoring	4
+../Core/Src/Autonomous_functions.c:66:5:ASSI_control	8
