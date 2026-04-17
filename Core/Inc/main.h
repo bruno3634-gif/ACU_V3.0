@@ -69,10 +69,10 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOB
 #define LED2_Pin GPIO_PIN_2
 #define LED2_GPIO_Port GPIOB
-#define Solenoid2_Pin GPIO_PIN_12
-#define Solenoid2_GPIO_Port GPIOB
-#define Solenoid1_Pin GPIO_PIN_13
-#define Solenoid1_GPIO_Port GPIOB
+#define Rear_Solenoid_Pin GPIO_PIN_12
+#define Rear_Solenoid_GPIO_Port GPIOB
+#define Front_Solenoid_Pin GPIO_PIN_13
+#define Front_Solenoid_GPIO_Port GPIOB
 #define ASSI_YELLOW_Pin GPIO_PIN_14
 #define ASSI_YELLOW_GPIO_Port GPIOB
 #define ASSI_BLUE_Pin GPIO_PIN_15
@@ -101,35 +101,30 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-
-typedef enum
-{
-  AS_STATE_OFF = 1,       // 0
-  AS_STATE_READY = 2,     // 1
-  AS_STATE_DRIVING = 3,   // 2
-  AS_STATE_EMERGENCY = 4, // 3
-  AS_STATE_FINISHED = 5   // 4
+typedef enum {
+	AS_STATE_OFF = 1,       // 0
+	AS_STATE_READY = 2,     // 1
+	AS_STATE_DRIVING = 3,   // 2
+	AS_STATE_EMERGENCY = 4, // 3
+	AS_STATE_FINISHED = 5   // 4
 } AS_STATE_t;
 
-typedef enum
-{
-  MANUAL,       // 0
-  ACCELERATION, // 1
-  SKIDPAD,      // 2   // 3
-  TRACKDRIVE,   // 4
-  EBS_TEST,     // 5
-  INSPECTION,   // 6
-  AUTOCROSS     // 7
+typedef enum {
+	MANUAL,       // 0
+	ACCELERATION, // 1
+	SKIDPAD,      // 2   // 3
+	TRACKDRIVE,   // 4
+	EBS_TEST,     // 5
+	INSPECTION,   // 6
+	AUTOCROSS     // 7
 } current_mission_t;
 
-
-
-struct pressure{
+struct pressure {
 	float Pneumatic;
 	float Hydraulic;
 };
 
-struct speed{
+struct speed {
 	uint8_t Speed;			// Km/h
 	uint8_t Target_Speed;	// Km/h
 };
@@ -137,37 +132,27 @@ struct speed{
 struct car {
 	struct pressure Rear_Pressure;
 	struct pressure Front_Pressure;
-	uint8_t Ignition_Status;					// 0 - OFF, 1 - ON     (Real from VCU)
-	uint8_t Ignition_Request;					// 0 - OFF, 1 - ON		(Request from ACU)
+	uint8_t front_solenoid;
+	uint8_t rear_solenoid;
+	uint8_t Ignition_Status;			// 0 - OFF, 1 - ON     (Real from VCU)
+	uint8_t Ignition_Request;		// 0 - OFF, 1 - ON		(Request from ACU)
 	uint8_t ASMS;								// 0 - OFF, 1 - ON
 	uint8_t Emergency;							// 0 - No , 1 - Emergency
-	uint8_t Res;								// 0 - Not active, 1 - ON , 2 - Emergency
+	uint8_t Res;					// 0 - Not active, 1 - ON , 2 - Emergency
 	uint8_t HW_WDT_Enable;
 	uint8_t Solenoid1_Request;					// 0 - OFF, 1 - ON
 	uint8_t Solenoid2_Request;					// 0 - OFF, 1 - ON
+	uint8_t ignition_pin_state;
+	uint8_t SDC_feedback;
 	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
-	uint8_t SDC_feedback;
 	float chip_temp;
 };
 
-
-typedef enum{
-	Start,
-	IDLE,
-	AS_ON,
-	EMERGENCY
-}Main_state_machine_t;
-
-
 typedef enum {
-	OFF,
-	Initial_Sequence,
-	Monitor_sequence,
-	Finish,
-	AS_Emergency
-}Autonomous_System_states_t;
+	Start, IDLE, AS_ON, EMERGENCY
+} Main_state_machine_t;
 
 typedef enum{
 	Watchdog_check,
@@ -177,7 +162,19 @@ typedef enum{
 	MB1_Check, // Solenoide 1
 	MB2_Check, // Solenoide 2
 	Error_state
-}startup_sequence_state_t;
+} startup_sequence_state_t;
+
+struct can_timeouts {
+	unsigned long vcu;
+	unsigned long res;
+	unsigned long jetson;
+};
+
+struct can_queue {
+	uint32_t TX_MAILBOX;
+	CAN_TxHeaderTypeDef can_tx_header;
+	uint8_t tx_data[8];
+};
 
 /* USER CODE END Private defines */
 

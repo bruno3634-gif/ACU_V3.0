@@ -4,17 +4,17 @@
  *  Created on: Mar 20, 2026
  *      Author: bruno
  */
+#ifndef HW_ABS
+#define HW_ABS
 
-uint32_t millis() {
+#include <stdint.h>
 
 #if defined (__ARM_ARCH_7EM__)
 
-	return HAL_GetTick();
-
 #else
-	struct timespec ts;
-	    clock_gettime(CLOCK_MONOTONIC, &ts);
-	    return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+	#include <time.h>
 #endif
 
-}
+uint32_t millis();
+
+#endif
