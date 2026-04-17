@@ -117,6 +117,8 @@ int main(void)
 	t24.Rear_Pressure.Pneumatic = 0;
 	t24.Ignition_Status = 0;
 	t24.Ignition_Request = 0;
+	t24.Solenoid1_Request = 0;
+	t24.Solenoid2_Request = 0;
 	t24.Speed.Speed = 0;
 	t24.Speed.Target_Speed = 0;
 	t24.Emergency = 0;
@@ -338,6 +340,18 @@ void toggle_wdt() {
 
 }
 
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+    if(hadc->Instance == ADC1) {
+        t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion
+        t24.Rear_Pressure.Pneumatic  = ADC_Samples[1]; // missing conversion
+        t24.chip_temp = GetTemperature(ADC_Samples[2], ADC_Samples[3]);
+    }
+}
+
+/* USER CODE BEGIN 4 */
+float GetTemperature(uint16_t raw_temp, uint16_t raw_vref)
+{
+    if (raw_vref == 0) return 0.0f;
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 	if (hadc->Instance == ADC1) {
 		t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion

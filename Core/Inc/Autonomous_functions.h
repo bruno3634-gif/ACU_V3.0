@@ -10,14 +10,8 @@
 
 #include "main.h"
 
-void initial_sequence();
-
-
-void continuous_monitoring(uint8_t sdc_status,
-		struct can_timeouts *last_message_from, float Rear_pneumatic,
-		float Front_pneumatic, float Rear_hydraulic, float Front_hydraulic);
-
-
+void initial_sequence(struct car *v, startup_sequence_state_t *seq_status, Main_state_machine_t *Vehicle_state_machine);
+void continuous_monitoring();
 int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state);
 
 #endif /* INC_AUTONOMOUS_FUNCTIONS_H_ */
