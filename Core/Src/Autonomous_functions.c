@@ -119,8 +119,33 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			break;
 	}
 }
-void continuous_monitoring() {
+void continuous_monitoring(uint8_t sdc_status,
+		struct can_timeouts *last_message_from, float Rear_pneumatic,
+		float Front_pneumatic, float Rear_hydraulic, float Front_hydraulic) {
 	// CAN Messages timeouts
+	/**
+	 *
+	 * TODO:	Check if sdc is open
+	 * 			Check can timeouts
+	 * 			Check AS system components
+	 * 			Check pneumatic pressure are between 6 and 10 Bar
+	 *
+	 * 			note: sdc open reads 0
+	 *			Reanalyze this
+	 */
+
+	if(sdc_status == 0){
+		// check pressures
+	}else{
+		if(millis() - last_message_from->jetson > 500 || millis() - last_message_from->res > 500 || millis() - last_message_from->vcu > 500)
+		{
+			//enter emergency
+			Vehicle_state_machine = EMERGENCY;
+		}else if( (Rear_pneumatic > 10 || Rear_pneumatic < 6) || (Front_pneumatic > 10 || Front_pneumatic < 6) ){
+			// enter emergency
+			Vehicle_state_machine = EMERGENCY;
+		}
+	}
 }
 
 int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
@@ -156,14 +181,14 @@ int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
 		gpio_state = 0b00000001;
 		break;
 	case 2:
-		if(millis() - prev_time_yellow >= 330){
+		if (millis() - prev_time_yellow >= 330) {
 			gpio_state ^= 1;
 			gpio_state &= 0b00000001;
 			prev_time_yellow = millis();
 		}
 		break;
 	case 3:
-		if(millis() - prev_time_blue >= 330){
+		if (millis() - prev_time_blue >= 330) {
 			gpio_state ^= 0b00000010;
 			gpio_state &= 0b00000010;
 			prev_time_blue = millis();

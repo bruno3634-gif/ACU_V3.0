@@ -30,6 +30,8 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "Autonomous_functions.h"
+#include "hardware_abstraction.h"
+#include "dbc/autonomous_t26.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,30 +56,44 @@ uint16_t raw_vref;
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+uint32_t TX_MAILBOX;
+CAN_TxHeaderTypeDef can_tx_header;
+uint8_t tx_data[8];
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 struct car t24;
+
+struct can_queue can_tx_queue[64];
+int can_queue_index = -1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
-void Handle_state();
+void Handle_state(uint8_t prev_asms_state);
 void Handle_autonomous_state();
 void Handle_Emergency();
-void Peripheral_aquisition();
+void Peripheral_aquisition(uint8_t *assi_leds);
+void Peripheral_actuation();
 void toggle_wdt();
 float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
+void handle_uart_logs();
+void LED_indicator_controller();
+void handle_can_tx();
+void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
+		uint8_t tx_data[8]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 Main_state_machine_t Vehicle_state_machine = IDLE;
 Autonomous_System_states_t Autonomous_state = OFF;
+startup_sequence_state_t startup_sequence_state = Watchdog_check;
 
 uint32_t ADC_Samples[4];
 
@@ -128,7 +144,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+	uint8_t prev_ASMS = 0;
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -139,13 +155,30 @@ int main(void)
   MX_TIM8_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  	HAL_CAN_Start(&hcan1);
 
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADC_Samples, 4);
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_Samples, 4);
 
-  HAL_TIM_Base_Start(&htim8);
+	HAL_TIM_Base_Start(&htim8);
+	HAL_TIM_Base_Start_IT(&htim2);
+	uint8_t ASSI_leds_control_signal = 0;
 
+	char *enter_cmd = "$$$";
+	char *set_name = "SN,ACU\r";
+	char *reboot = "R,1\r";
 
+	HAL_UART_Transmit(&huart2, (uint8_t*) enter_cmd, 3, 100);
+	HAL_Delay(100); // Pequena pausa para o módulo responder CMD>
+
+	// 2. Definir o nome
+	HAL_UART_Transmit(&huart2, (uint8_t*) set_name, strlen(set_name), 100);
+	HAL_Delay(100);
+
+	// 3. Reiniciar para aplicar
+	HAL_UART_Transmit(&huart2, (uint8_t*) reboot, strlen(reboot), 100);
+	HAL_CAN_Start(&hcan1);
 
   /* USER CODE END 2 */
 
@@ -155,10 +188,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		Peripheral_aquisition();
+		prev_ASMS = t24.ASMS;
+		Peripheral_aquisition(&ASSI_leds_control_signal);
 		temporary_temp = t24.chip_temp;
-		Handle_state();
+		Handle_state(prev_ASMS);
 		toggle_wdt();
+		handle_uart_logs();
+		LED_indicator_controller();
+		ASSI_control(ASSI_leds_control_signal, Autonomous_state);
+		Peripheral_actuation();
+		HAL_GPIO_WritePin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin, 1);
+		handle_can_tx();
+
 	}
   /* USER CODE END 3 */
 }
@@ -210,7 +251,8 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void Handle_state() {
+void Handle_state(uint8_t prev_asms_state) {
+	static uint8_t as_on_first_time = 0,finished_init_sequence = 0;
 	switch (Vehicle_state_machine) {
 	case Start:
 		t24.HW_WDT_Enable = 1;
@@ -218,11 +260,22 @@ void Handle_state() {
 		Vehicle_state_machine = IDLE;
 		break;
 	case IDLE:
-		//ASMS = 1 advance
-		Vehicle_state_machine = AS_ON;
+		//ASMS = change from 0 to 1
+		if (t24.ASMS == 1 && prev_asms_state == 0
+				&& t24.ignition_pin_state == 0) {
+			Vehicle_state_machine = AS_ON;
+		} else {
+			// do not break;
+		}
 		break;
 	case AS_ON:
-		Autonomous_state = Initial_Sequence;
+		if(finished_init_sequence == 0 ){
+			Autonomous_state = Initial_Sequence;
+			if(!as_on_first_time){
+				startup_sequence_state = Watchdog_check;
+				as_on_first_time = 1;
+			}
+		}
 		Handle_autonomous_state();
 		break;
 	case EMERGENCY:
@@ -233,54 +286,70 @@ void Handle_state() {
 	}
 }
 
-void Handle_autonomous_state(){
+void Handle_autonomous_state() {
 	switch (Autonomous_state) {
-		case Initial_Sequence:
-			initial_sequence(&t24, &initial_sequence_status, &Vehicle_state_machine);
-
-			if (initial_sequence_status == Error_state) {
-				Vehicle_state_machine = EMERGENCY;
-			}
-			break;
-		case Monitor_sequence:
-			break;
-		case Finish:
-			/***
-			 * Ensure car stoped safely
-			 */
-			if(t24.ASMS == 0){
-			}
-			break;
-		case AS_Emergency:
-			Vehicle_state_machine = EMERGENCY;
-			break;
-		default:
-			Vehicle_state_machine = EMERGENCY;
-			break;
+	case Initial_Sequence:
+		initial_sequence(&t24,&startup_sequence_state,&Vehicle_state_machine);
+		break;
+	case Monitor_sequence:
+		break;
+	case Finish:
+		/***
+		 * Ensure car stoped safely
+		 */
+		if (t24.ASMS == 0) {
+		}
+		break;
+	case AS_Emergency:
+		Vehicle_state_machine = EMERGENCY;
+		break;
+	default:
+		Vehicle_state_machine = EMERGENCY;
+		break;
 	}
 }
 
-void Handle_Emergency(){
+void Handle_Emergency() {
 	t24.HW_WDT_Enable = 0;
 	t24.Ignition_Request = 0;
-	t24.Solenoid1_Request = 0;
-	t24.Solenoid2_Request = 0;
-	HAL_GPIO_WritePin(Solenoid2_GPIO_Port, Solenoid2_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(Solenoid1_GPIO_Port, Solenoid1_Pin, GPIO_PIN_RESET);
+	t24.Emergency = 1;
+	HAL_GPIO_WritePin(Front_Solenoid_GPIO_Port, Front_Solenoid_Pin,
+			GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(Rear_Solenoid_GPIO_Port, Rear_Solenoid_Pin,
+			GPIO_PIN_RESET);
+	t24.front_solenoid = 0;
+	t24.rear_solenoid = 0;
 }
 
-void Peripheral_aquisition(){
+void Peripheral_aquisition(uint8_t *assi_leds) {
 	t24.ASMS = HAL_GPIO_ReadPin(ASMS_GPIO_Port, ASMS_Pin);
-	t24.SDC_feedback = HAL_GPIO_ReadPin(SDC_FEEDBACK_GPIO_Port, SDC_FEEDBACK_Pin);
+	t24.SDC_feedback = !HAL_GPIO_ReadPin(SDC_FEEDBACK_GPIO_Port,
+	SDC_FEEDBACK_Pin);
+	t24.ignition_pin_state = HAL_GPIO_ReadPin(IGN_BTN_GPIO_Port, IGN_BTN_Pin);
+	*assi_leds = HAL_GPIO_ReadPin(ASSI_YELLOW_GPIO_Port, ASSI_YELLOW_Pin) << 1
+			| HAL_GPIO_ReadPin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin);
 }
 
-void toggle_wdt(){
+void Peripheral_actuation() {
+	HAL_GPIO_WritePin(Front_Solenoid_GPIO_Port, Front_Solenoid_Pin,
+			t24.front_solenoid);
+	HAL_GPIO_WritePin(Rear_Solenoid_GPIO_Port, Rear_Solenoid_Pin,
+			t24.rear_solenoid);
+	HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin,
+					!t24.rear_solenoid);
+	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin,
+					!t24.front_solenoid);
+
+}
+
+void toggle_wdt() {
 	static unsigned long wdt_time = 0;
 
-	if(HAL_GetTick() - wdt_time >= 10){
-		if(t24.HW_WDT_Enable == 1){
+	if (millis() - wdt_time >= 10) {
+		if (t24.HW_WDT_Enable == 1) {
 			HAL_GPIO_TogglePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin);
-			wdt_time = HAL_GetTick();
+			//HAL_GPIO_WritePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin, GPIO_PIN_SET);
+			wdt_time = millis();
 		}
 	}
 
@@ -294,27 +363,121 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     }
 }
 
-/* USER CODE BEGIN 4 */
-float GetTemperature(uint16_t raw_temp, uint16_t raw_vref)
-{
-    if (raw_vref == 0) return 0.0f;
 
-    // 1. Calcular VDDA real usando a calibração de fábrica do VREF (3.3V)
-    // VDDA = 3.3V * (VREFINT_CAL / Raw_VREF)
-    float vdda = 3.3f * ((float)(*VREFINT_CAL_ADDR) / (float)raw_vref);
 
-    // 2. Ajustar o valor lido da temperatura para a escala de 3.3V
-    // (A calibração TS_CAL foi feita a 3.3V, se o teu VDDA for diferente, o valor "mexe")
-    float raw_equiv_3v3 = (float)raw_temp * (vdda / 3.3f);
+float GetTemperature(uint16_t raw_temp, uint16_t raw_vref) {
+	if (raw_vref == 0)
+		return 0.0f;
 
-    // 3. Interpolação Linear
-    float ts_cal1 = (float)(*TS_CAL1_ADDR);
-    float ts_cal2 = (float)(*TS_CAL2_ADDR);
+	// 1. Calcular VDDA real usando a calibração de fábrica do VREF (3.3V)
+	// VDDA = 3.3V * (VREFINT_CAL / Raw_VREF)
+	float vdda = 3.3f * ((float) (*VREFINT_CAL_ADDR) / (float) raw_vref);
 
-    float temperature = ((raw_equiv_3v3 - ts_cal1) * (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC)
-                        / (ts_cal2 - ts_cal1)) + TEMP_CAL1_TEMPC;
+	// 2. Ajustar o valor lido da temperatura para a escala de 3.3V
+	// (A calibração TS_CAL foi feita a 3.3V, se o teu VDDA for diferente, o valor "mexe")
+	float raw_equiv_3v3 = (float) raw_temp * (vdda / 3.3f);
 
-    return temperature;
+	// 3. Interpolação Linear
+	float ts_cal1 = (float) (*TS_CAL1_ADDR);
+	float ts_cal2 = (float) (*TS_CAL2_ADDR);
+
+	float temperature = ((raw_equiv_3v3 - ts_cal1)
+			* (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC) / (ts_cal2 - ts_cal1))
+			+ TEMP_CAL1_TEMPC;
+
+	return temperature;
+}
+
+void handle_uart_logs() {
+	static unsigned long timestamp = 0;
+
+	if (millis() - timestamp > 500) {
+		uint8_t UART_TxBuffer[512];
+
+		int len =
+				snprintf(UART_TxBuffer, sizeof(UART_TxBuffer),
+						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%0.2f\n\r\0",
+						t24.chip_temp, t24.Rear_Pressure, t24.Front_Pressure);
+
+		HAL_UART_Transmit_DMA(&huart2, UART_TxBuffer, len);
+		timestamp = millis();
+	}
+}
+
+void LED_indicator_controller() {
+	static unsigned long timestamp = 0;
+
+	if (millis() - timestamp >= 500) {
+		HAL_GPIO_TogglePin(HB_GPIO_Port, HB_Pin);
+		timestamp = millis();
+
+		can_tx_header.IDE = CAN_ID_STD;
+		can_tx_header.RTR = CAN_RTR_DATA;
+		can_tx_header.DLC = 1;
+		tx_data[0] = 0xFF;
+		/*for (int i = 0; i < 20; i++) {
+			can_tx_header.StdId = 0x99 + i;
+			add_can_message(TX_MAILBOX, can_tx_header, tx_data);
+		}*/
+
+	}
+
+}
+
+/***
+ * tmr callback
+ */
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim->Instance == TIM2) {
+
+
+		struct autonomous_t26_acu_t AS_data;
+
+		AS_data.acu_cpu_temp = t24.chip_temp;
+		AS_data.as_state = t24.Autonomous_State;
+		AS_data.asms = t24.ASMS;
+		AS_data.assi_state = t24.ASSI_state;
+		AS_data.emergency = t24.Emergency;
+		AS_data.ign = t24.Ignition_Request;
+		AS_data.mission_select = t24.Current_Mission;
+
+		autonomous_t26_acu_pack(tx_data, &AS_data, AUTONOMOUS_T26_ACU_LENGTH);
+
+		can_tx_header.StdId = AUTONOMOUS_T26_ACU_FRAME_ID;
+		can_tx_header.RTR = CAN_RTR_DATA;
+		can_tx_header.DLC = AUTONOMOUS_T26_ACU_LENGTH;
+
+		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
+
+
+
+	}
+
+	//  	HAL_CAN_AddTxMessage(hcan, pHeader, aData, pTxMailbox)
+}
+
+void handle_can_tx() {
+	static uint8_t tx_index = 0;
+	if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0 && can_queue_index > -1) {
+		HAL_CAN_AddTxMessage(&hcan1, &can_tx_queue[tx_index].can_tx_header,
+				can_tx_queue[tx_index].tx_data,
+				&can_tx_queue[tx_index].TX_MAILBOX);
+		tx_index++;
+		if (can_queue_index == (tx_index - 1)) {
+			can_queue_index = -1;
+			tx_index = 0;
+		}
+	}
+
+}
+
+void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
+		uint8_t tx_data[8]) {
+	can_queue_index++;
+	can_tx_queue[can_queue_index].TX_MAILBOX = mailbox;
+	can_tx_queue[can_queue_index].can_tx_header = tx_header;
+	memcpy(can_tx_queue[can_queue_index].tx_data, tx_data, 8);
 }
 
 /* USER CODE END 4 */
