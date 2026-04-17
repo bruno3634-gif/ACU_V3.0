@@ -1,1 +1,12 @@
-/Debug/
+.project
+.cproject
+
+# Build outputs
+Debug/
+Release/
+bin/
+obj/
+
+# Outros ficheiros temporários
+*.bak
+*.orig
