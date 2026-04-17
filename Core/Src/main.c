@@ -260,7 +260,7 @@ void Handle_state(uint8_t prev_asms_state) {
 		Vehicle_state_machine = IDLE;
 		break;
 	case IDLE:
-		//ASMS = change from 0 to 1
+		//ASMS = change from 0 to 1 (1 -> btn closed)
 		if (t24.ASMS == 1 && prev_asms_state == 0
 				&& t24.ignition_pin_state == 0) {
 			Vehicle_state_machine = AS_ON;
