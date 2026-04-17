@@ -101,35 +101,30 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-
-typedef enum
-{
-  AS_STATE_OFF = 1,       // 0
-  AS_STATE_READY = 2,     // 1
-  AS_STATE_DRIVING = 3,   // 2
-  AS_STATE_EMERGENCY = 4, // 3
-  AS_STATE_FINISHED = 5   // 4
+typedef enum {
+	AS_STATE_OFF = 1,       // 0
+	AS_STATE_READY = 2,     // 1
+	AS_STATE_DRIVING = 3,   // 2
+	AS_STATE_EMERGENCY = 4, // 3
+	AS_STATE_FINISHED = 5   // 4
 } AS_STATE_t;
 
-typedef enum
-{
-  MANUAL,       // 0
-  ACCELERATION, // 1
-  SKIDPAD,      // 2   // 3
-  TRACKDRIVE,   // 4
-  EBS_TEST,     // 5
-  INSPECTION,   // 6
-  AUTOCROSS     // 7
+typedef enum {
+	MANUAL,       // 0
+	ACCELERATION, // 1
+	SKIDPAD,      // 2   // 3
+	TRACKDRIVE,   // 4
+	EBS_TEST,     // 5
+	INSPECTION,   // 6
+	AUTOCROSS     // 7
 } current_mission_t;
 
-
-
-struct pressure{
+struct pressure {
 	float Pneumatic;
 	float Hydraulic;
 };
 
-struct speed{
+struct speed {
 	uint8_t Speed;			// Km/h
 	uint8_t Target_Speed;	// Km/h
 };
@@ -139,11 +134,11 @@ struct car {
 	struct pressure Front_Pressure;
 	uint8_t front_solenoid;
 	uint8_t rear_solenoid;
-	uint8_t Ignition_Status;					// 0 - OFF, 1 - ON     (Real from VCU)
-	uint8_t Ignition_Request;					// 0 - OFF, 1 - ON		(Request from ACU)
+	uint8_t Ignition_Status;			// 0 - OFF, 1 - ON     (Real from VCU)
+	uint8_t Ignition_Request;		// 0 - OFF, 1 - ON		(Request from ACU)
 	uint8_t ASMS;								// 0 - OFF, 1 - ON
 	uint8_t Emergency;							// 0 - No , 1 - Emergency
-	uint8_t Res;								// 0 - Not active, 1 - ON , 2 - Emergency
+	uint8_t Res;					// 0 - Not active, 1 - ON , 2 - Emergency
 	uint8_t HW_WDT_Enable;
 	uint8_t ignition_pin_state;
 	uint8_t SDC_feedback;
@@ -153,40 +148,33 @@ struct car {
 	float chip_temp;
 };
 
-
-typedef enum{
-	Start,
-	IDLE,
-	AS_ON,
-	EMERGENCY
-}Main_state_machine_t;
-
+typedef enum {
+	Start, IDLE, AS_ON, EMERGENCY
+} Main_state_machine_t;
 
 typedef enum {
-	OFF,
-	Initial_Sequence,
-	Monitor_sequence,
-	Finish,
-	AS_Emergency
-}Autonomous_System_states_t;
+	OFF, Initial_Sequence, Monitor_sequence, Finish, AS_Emergency
+} Autonomous_System_states_t;
 
-
-typedef enum{
+typedef enum {
 	Watchdog_check,
 	Pressure_check,
 	HV_activation,
 	Pressure_correlation_check,
 	Error_state
-}startup_sequence_state_t;
+} startup_sequence_state_t;
 
-
-
-struct can_timeouts{
+struct can_timeouts {
 	unsigned long vcu;
 	unsigned long res;
 	unsigned long jetson;
 };
 
+struct can_queue {
+	uint32_t TX_MAILBOX;
+	CAN_TxHeaderTypeDef can_tx_header;
+	uint8_t tx_data[8];
+};
 
 /* USER CODE END Private defines */
 

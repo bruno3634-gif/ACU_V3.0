@@ -54,7 +54,7 @@ void continuous_monitoring(uint8_t sdc_status,
 	 * 			note: sdc open reads 0
 	 */
 	if(sdc_status == 1){
-		// chack pressures
+		// check pressures
 	}else{
 		if(millis() - last_message_from->jetson > 500 || millis() - last_message_from->res > 500 || millis() - last_message_from->vcu > 500)
 		{
