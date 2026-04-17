@@ -52,13 +52,19 @@ void continuous_monitoring(uint8_t sdc_status,
 	 * 			Check pneumatic pressure are between 6 and 10 Bar
 	 *
 	 * 			note: sdc open reads 0
+	 *			Reanalyze this
 	 */
-	if(sdc_status == 1){
+
+	if(sdc_status == 0){
 		// check pressures
 	}else{
 		if(millis() - last_message_from->jetson > 500 || millis() - last_message_from->res > 500 || millis() - last_message_from->vcu > 500)
 		{
 			//enter emergency
+			Vehicle_state_machine = EMERGENCY;
+		}else if( (Rear_pneumatic > 10 || Rear_pneumatic < 6) || (Front_pneumatic > 10 || Front_pneumatic < 6) ){
+			// enter emergency
+			Vehicle_state_machine = EMERGENCY;
 		}
 	}
 }
