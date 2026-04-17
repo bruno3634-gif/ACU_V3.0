@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include "Autonomous_functions.h"
 #include "hardware_abstraction.h"
+#include "dbc/autonomous_t26.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -251,6 +252,7 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 void Handle_state(uint8_t prev_asms_state) {
+	static uint8_t as_on_first_time = 0,finished_init_sequence = 0;
 	switch (Vehicle_state_machine) {
 	case Start:
 		t24.HW_WDT_Enable = 1;
@@ -267,8 +269,13 @@ void Handle_state(uint8_t prev_asms_state) {
 		}
 		break;
 	case AS_ON:
-		Autonomous_state = Initial_Sequence;
-		startup_sequence_state = Watchdog_check;
+		if(finished_init_sequence == 0 ){
+			Autonomous_state = Initial_Sequence;
+			if(!as_on_first_time){
+				startup_sequence_state = Watchdog_check;
+				as_on_first_time = 1;
+			}
+		}
 		Handle_autonomous_state();
 		break;
 	case EMERGENCY:
@@ -305,6 +312,7 @@ void Handle_autonomous_state() {
 void Handle_Emergency() {
 	t24.HW_WDT_Enable = 0;
 	t24.Ignition_Request = 0;
+	t24.Emergency = 1;
 	HAL_GPIO_WritePin(Front_Solenoid_GPIO_Port, Front_Solenoid_Pin,
 			GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(Rear_Solenoid_GPIO_Port, Rear_Solenoid_Pin,
@@ -327,6 +335,11 @@ void Peripheral_actuation() {
 			t24.front_solenoid);
 	HAL_GPIO_WritePin(Rear_Solenoid_GPIO_Port, Rear_Solenoid_Pin,
 			t24.rear_solenoid);
+	HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin,
+					!t24.rear_solenoid);
+	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin,
+					!t24.front_solenoid);
+
 }
 
 void toggle_wdt() {
@@ -417,14 +430,28 @@ void LED_indicator_controller() {
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM2) {
-		uint32_t timeee = HAL_GetTick();
-		can_tx_header.IDE = CAN_ID_STD;
-		can_tx_header.RTR = CAN_RTR_DATA;
-		can_tx_header.DLC = 1;
-		tx_data[0] = 0xFF;
 
-		can_tx_header.StdId = 0x99;
+
+		struct autonomous_t26_acu_t AS_data;
+
+		AS_data.acu_cpu_temp = t24.chip_temp;
+		AS_data.as_state = t24.Autonomous_State;
+		AS_data.asms = t24.ASMS;
+		AS_data.assi_state = t24.ASSI_state;
+		AS_data.emergency = t24.Emergency;
+		AS_data.ign = t24.Ignition_Request;
+		AS_data.mission_select = t24.Current_Mission;
+
+		autonomous_t26_acu_pack(tx_data, &AS_data, AUTONOMOUS_T26_ACU_LENGTH);
+
+		can_tx_header.StdId = AUTONOMOUS_T26_ACU_FRAME_ID;
+		can_tx_header.RTR = CAN_RTR_DATA;
+		can_tx_header.DLC = AUTONOMOUS_T26_ACU_LENGTH;
+
 		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
+
+
+
 	}
 
 	//  	HAL_CAN_AddTxMessage(hcan, pHeader, aData, pTxMailbox)

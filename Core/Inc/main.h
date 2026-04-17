@@ -144,6 +144,7 @@ struct car {
 	uint8_t Solenoid2_Request;					// 0 - OFF, 1 - ON
 	uint8_t ignition_pin_state;
 	uint8_t SDC_feedback;
+	uint8_t ASSI_state;
 	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
