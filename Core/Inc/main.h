@@ -154,6 +154,17 @@ typedef enum {
 	Start, IDLE, AS_ON, EMERGENCY
 } Main_state_machine_t;
 
+
+
+typedef enum {
+	OFF,
+	Initial_Sequence,
+	Monitor_sequence,
+	Finish,
+	AS_Emergency
+}Autonomous_System_states_t;
+
+
 typedef enum{
 	Watchdog_check,
 	Pressure_check,

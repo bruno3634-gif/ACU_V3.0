@@ -92,6 +92,7 @@ void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
 /* USER CODE BEGIN 0 */
 Main_state_machine_t Vehicle_state_machine = IDLE;
 Autonomous_System_states_t Autonomous_state = OFF;
+startup_sequence_state_t startup_sequence_state = Watchdog_check;
 
 uint32_t ADC_Samples[4];
 
@@ -267,6 +268,7 @@ void Handle_state(uint8_t prev_asms_state) {
 		break;
 	case AS_ON:
 		Autonomous_state = Initial_Sequence;
+		startup_sequence_state = Watchdog_check;
 		Handle_autonomous_state();
 		break;
 	case EMERGENCY:
@@ -280,7 +282,7 @@ void Handle_state(uint8_t prev_asms_state) {
 void Handle_autonomous_state() {
 	switch (Autonomous_state) {
 	case Initial_Sequence:
-		initial_sequence();
+		initial_sequence(&t24,&startup_sequence_state,&Vehicle_state_machine);
 		break;
 	case Monitor_sequence:
 		break;
@@ -348,19 +350,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     }
 }
 
-/* USER CODE BEGIN 4 */
-float GetTemperature(uint16_t raw_temp, uint16_t raw_vref)
-{
-    if (raw_vref == 0) return 0.0f;
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-	if (hadc->Instance == ADC1) {
-		t24.Front_Pressure.Pneumatic = ADC_Samples[0]; // missing conversion
-		t24.Rear_Pressure.Pneumatic = ADC_Samples[1]; // missing conversion
-		t24.chip_temp = GetTemperature(ADC_Samples[2], ADC_Samples[3]);
-	}
-}
 
-/* USER CODE BEGIN 4 */
+
 float GetTemperature(uint16_t raw_temp, uint16_t raw_vref) {
 	if (raw_vref == 0)
 		return 0.0f;
