@@ -1,10 +1,12 @@
-# build folders
-build/
-debug/
-# object files
-*.o
-*.obj
+.project
+.cproject
 
-# binaries
-*.elf
-*.bin
+# Build outputs
+Debug/
+Release/
+bin/
+obj/
+
+# Outros ficheiros temporários
+*.bak
+*.orig
