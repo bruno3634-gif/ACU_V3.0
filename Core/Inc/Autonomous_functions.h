@@ -11,7 +11,10 @@
 #include "main.h"
 #include <stdbool.h>
 
+#define SKIP_REAR_PRESSURE_CHECK 1
+
 extern Main_state_machine_t Vehicle_state_machine;
+
 
 void initial_sequence(struct car *v, startup_sequence_state_t *seq_status,
 		Main_state_machine_t *Vehicle_state_machine);

@@ -95,6 +95,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 
 		case MB2_Check:
 			// Close MB1, Open MB2
+#ifndef SKIP_REAR_PRESSURE_CHECK
 			t24->Solenoid1_Request = 0;
 			t24->Solenoid2_Request = 1;
 
@@ -108,6 +109,9 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
 				*seq_status = Error_state;
 			}
+#else
+			t24->Autonomous_State = AS_STATE_READY;
+#endif
 			break;
 
 		case Error_state:

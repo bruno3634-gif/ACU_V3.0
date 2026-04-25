@@ -40,7 +40,6 @@ CPP_DEPS :=
 SUBDIRS := \
 Core/Inc \
 Core/Src \
-Core/Src/dbc \
 Core/Startup \
 Drivers/STM32F4xx_HAL_Driver/Src \
 

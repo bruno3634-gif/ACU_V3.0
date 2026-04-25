@@ -1,1 +1,3 @@
 ../Core/Src/hardware_abstaction.c:12:10:millis	1
+../Core/Src/hardware_abstaction.c:28:6:Peripheral_aquisition	1
+../Core/Src/hardware_abstaction.c:37:6:Peripheral_actuation	1
