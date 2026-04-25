@@ -138,17 +138,26 @@ void continuous_monitoring(uint8_t sdc_status,
 	 *			Reanalyze this
 	 */
 
-	if(sdc_status == 0){
-		// check pressures
-	}else{
-		if(millis() - last_message_from->jetson > 500 || millis() - last_message_from->res > 500 || millis() - last_message_from->vcu > 500)
-		{
-			//enter emergency
-			Vehicle_state_machine = EMERGENCY;
-		}else if( (Rear_pneumatic > 10 || Rear_pneumatic < 6) || (Front_pneumatic > 10 || Front_pneumatic < 6) ){
-			// enter emergency
-			Vehicle_state_machine = EMERGENCY;
-		}
+	if (sdc_status == 0) {
+		Vehicle_state_machine = EMERGENCY;
+		return;
+	}
+
+	if (check_timeout(last_message_from->jetson, 500) ||
+		check_timeout(last_message_from->res, 500) ||
+		check_timeout(last_message_from->vcu, 500)) {
+		Vehicle_state_machine = EMERGENCY;
+		return;
+	}
+
+	if (!IN_RANGE(Rear_pneumatic, EBS_MIN_BAR, EBS_MAX_BAR) || !IN_RANGE(Front_pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
+		Vehicle_state_machine = EMERGENCY;
+		return;
+	}
+
+	if (!IS_CORRELATED(Front_hydraulic, Front_pneumatic) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic)) {
+		Vehicle_state_machine = EMERGENCY;
+		return;
 	}
 }
 
