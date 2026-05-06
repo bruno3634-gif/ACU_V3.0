@@ -1,6 +1,7 @@
 "./Core/Inc/GPIO.o"
 "./Core/Src/APP.o"
 "./Core/Src/Autonomous_functions.o"
+"./Core/Src/EMA_Filter.o"
 "./Core/Src/adc.o"
 "./Core/Src/autonomous_t26.o"
 "./Core/Src/can.o"

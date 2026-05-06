@@ -145,6 +145,7 @@ struct car {
 	uint8_t ignition_pin_state;
 	uint8_t SDC_feedback;
 	uint8_t ASSI_state;
+	uint8_t vcu_sdc;
 	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
@@ -185,6 +186,7 @@ struct can_timeouts {
 struct can_queue {
 	uint32_t TX_MAILBOX;
 	CAN_TxHeaderTypeDef can_tx_header;
+	CAN_RxHeaderTypeDef can_rx_header;
 	uint8_t tx_data[8];
 };
 

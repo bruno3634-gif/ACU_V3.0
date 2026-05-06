@@ -3,5 +3,5 @@
 ../Core/Src/hardware_abstaction.c:44:6:Peripheral_actuation	8	static
 ../Core/Src/hardware_abstaction.c:59:6:handle_can_tx	8	static
 ../Core/Src/hardware_abstaction.c:74:6:add_can_message	24	static
-../Core/Src/hardware_abstaction.c:83:6:handle_uart_logs	560	static
-../Core/Src/hardware_abstaction.c:99:6:LED_indicator_controller	8	static
+../Core/Src/hardware_abstaction.c:83:6:handle_uart_logs	568	static
+../Core/Src/hardware_abstaction.c:101:6:LED_indicator_controller	8	static

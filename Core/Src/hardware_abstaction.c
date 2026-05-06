@@ -86,10 +86,12 @@ void handle_uart_logs() {
 	if (millis() - timestamp > 500) {
 		uint8_t UART_TxBuffer[512];
 
+
+
 		int len =
 				snprintf(UART_TxBuffer, sizeof(UART_TxBuffer),
-						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%0.2f\n\r\0",
-						t24.chip_temp, t24.Rear_Pressure, t24.Front_Pressure);
+						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%.2f\n\r\0",
+						t24.chip_temp, t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic);
 
 		HAL_UART_Transmit_DMA(&huart2, UART_TxBuffer, len);
 		timestamp = millis();
@@ -107,10 +109,6 @@ void LED_indicator_controller() {
 		can_tx_header.RTR = CAN_RTR_DATA;
 		can_tx_header.DLC = 1;
 		tx_data[0] = 0xFF;
-		/*for (int i = 0; i < 20; i++) {
-			can_tx_header.StdId = 0x99 + i;
-			add_can_message(TX_MAILBOX, can_tx_header, tx_data);
-		}*/
 
 	}
 

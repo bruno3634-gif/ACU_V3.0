@@ -21,6 +21,7 @@
 #include "hardware_abstraction.h"
 #include "autonomous_t26.h"
 #include "rn4871.h"
+#include "ring_buffer.h"
 
 
 
@@ -31,5 +32,6 @@ extern startup_sequence_state_t startup_sequence_state;
 
 void app_init();
 void app();
+void dbc_decode();
 
 #endif /* INC_APP_H_ */
