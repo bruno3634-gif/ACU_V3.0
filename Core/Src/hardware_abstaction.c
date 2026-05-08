@@ -8,6 +8,13 @@
 
 #include "hardware_abstraction.h"
 
+extern int can_queue_index;
+extern struct can_queue can_tx_queue[64];
+
+extern uint32_t TX_MAILBOX;
+extern CAN_TxHeaderTypeDef can_tx_header;
+extern uint8_t tx_data[8];
+
 
 uint32_t millis() {
 
@@ -43,5 +50,66 @@ void Peripheral_actuation() {
 					!t24.rear_solenoid);
 	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin,
 					!t24.front_solenoid);
+
+}
+
+
+
+
+void handle_can_tx() {
+	static uint8_t tx_index = 0;
+	if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0 && can_queue_index > -1) {
+		HAL_CAN_AddTxMessage(&hcan1, &can_tx_queue[tx_index].can_tx_header,
+				can_tx_queue[tx_index].tx_data,
+				&can_tx_queue[tx_index].TX_MAILBOX);
+		tx_index++;
+		if (can_queue_index == (tx_index - 1)) {
+			can_queue_index = -1;
+			tx_index = 0;
+		}
+	}
+
+}
+
+void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
+		uint8_t tx_data[8]) {
+	can_queue_index++;
+	can_tx_queue[can_queue_index].TX_MAILBOX = mailbox;
+	can_tx_queue[can_queue_index].can_tx_header = tx_header;
+	memcpy(can_tx_queue[can_queue_index].tx_data, tx_data, 8);
+}
+
+
+void handle_uart_logs() {
+	static unsigned long timestamp = 0;
+
+	if (millis() - timestamp > 500) {
+		uint8_t UART_TxBuffer[512];
+
+
+
+		int len =
+				snprintf(UART_TxBuffer, sizeof(UART_TxBuffer),
+						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%.2f\n\r\0",
+						t24.chip_temp, t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic);
+
+		HAL_UART_Transmit_DMA(&huart2, UART_TxBuffer, len);
+		timestamp = millis();
+	}
+}
+
+void LED_indicator_controller() {
+	static unsigned long timestamp = 0;
+
+	if (millis() - timestamp >= 500) {
+		HAL_GPIO_TogglePin(HB_GPIO_Port, HB_Pin);
+		timestamp = millis();
+
+		can_tx_header.IDE = CAN_ID_STD;
+		can_tx_header.RTR = CAN_RTR_DATA;
+		can_tx_header.DLC = 1;
+		tx_data[0] = 0xFF;
+
+	}
 
 }
