@@ -111,10 +111,15 @@ void dbc_decode(){
 		t24.Ignition_Status = autonomous_t26_vcu_ign_r2_d_ignition_auto_decode(vcu_data.ignition_auto);
 		t24.vcu_sdc = autonomous_t26_vcu_ign_r2_d_shutdown_signal_decode(vcu_data.shutdown_signal);
 		break;
-	case AUTONOMOUS_T26_JETSON_FRAME_ID
+	case AUTONOMOUS_T26_JETSON_FRAME_ID:
 		struct autonomous_t26_jetson_t jetson_data;
 		autonomous_t26_jetson_unpack(&jetson_data, can_rx_data.tx_data,AUTONOMOUS_T26_JETSON_LENGTH);
 		t24.as_state = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+		break;
+
+	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
+		struct autonomous_t26_vcu_rpm_t vcu_rpm;
+		t24.rpm = autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
 		break;
 	default:
 		break;
