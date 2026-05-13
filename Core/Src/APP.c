@@ -54,26 +54,11 @@ void app_init() {
 	 startup_sequence_state = Watchdog_check;
 
 
-	HAL_CAN_Start(&hcan1);
-
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_Samples, 4);
 
 	HAL_TIM_Base_Start(&htim8);
 	HAL_TIM_Base_Start_IT(&htim2);
 
-	/*char *enter_cmd = "$$$";
-	 char *set_name = "SN,ACU\r";
-	 char *reboot = "R,1\r";
-
-	 HAL_UART_Transmit(&huart2, (uint8_t*) enter_cmd, 3, 100);
-	 HAL_Delay(100); // Pequena pausa para o módulo responder CMD>
-
-	 // 2. Definir o nome
-	 HAL_UART_Transmit(&huart2, (uint8_t*) set_name, strlen(set_name), 100);
-	 HAL_Delay(100);
-
-	 // 3. Reiniciar para aplicar
-	 HAL_UART_Transmit(&huart2, (uint8_t*) reboot, strlen(reboot), 100);*/
 
 	CAN_FilterTypeDef can_filter;
 
@@ -144,7 +129,17 @@ void dbc_decode(){
 		autonomous_t26_vcu_ign_r2_d_unpack(&vcu_data, can_rx_data.tx_data, AUTONOMOUS_T26_VCU_IGN_R2_D_LENGTH);
 		t24.Ignition_Status = autonomous_t26_vcu_ign_r2_d_ignition_auto_decode(vcu_data.ignition_auto);
 		t24.vcu_sdc = autonomous_t26_vcu_ign_r2_d_shutdown_signal_decode(vcu_data.shutdown_signal);
-	break;
+		break;
+	case AUTONOMOUS_T26_JETSON_FRAME_ID:
+		struct autonomous_t26_jetson_t jetson_data;
+		autonomous_t26_jetson_unpack(&jetson_data, can_rx_data.tx_data,AUTONOMOUS_T26_JETSON_LENGTH);
+		t24.as_state = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+		break;
+
+	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
+		struct autonomous_t26_vcu_rpm_t vcu_rpm;
+		t24.rpm = autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
+		break;
 	default:
 		break;
 	}

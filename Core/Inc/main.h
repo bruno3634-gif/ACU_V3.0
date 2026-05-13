@@ -150,6 +150,7 @@ struct car {
 	volatile current_mission_t Current_Mission; // Current mission state
 	struct speed Speed;
 	float chip_temp;
+	int rpm;
 };
 
 typedef enum {
