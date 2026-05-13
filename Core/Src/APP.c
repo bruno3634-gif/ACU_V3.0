@@ -97,17 +97,19 @@ void app_init() {
 	HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
 	HAL_Delay(200);
 
-	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_V3");
+	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_com");
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
 	HAL_Delay(100);
 
-	rn4871_cmd_exit_mode(cmd_buff, sizeof(cmd_buff));
-	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
-	HAL_Delay(100);
+	//rn4871_cmd_exit_mode(cmd_buff, sizeof(cmd_buff));
+	//HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
+	//HAL_Delay(100);
 
 	// 4. Agora sim, Reboot
 	rn4871_cmd_reboot(cmd_buff, sizeof(cmd_buff));
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
+
+
 }
 
 void app() {
