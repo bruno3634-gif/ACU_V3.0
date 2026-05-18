@@ -1,7 +1,7 @@
-../Core/Src/hardware_abstaction.c:19:10:millis	1
-../Core/Src/hardware_abstaction.c:35:6:Peripheral_aquisition	1
-../Core/Src/hardware_abstaction.c:44:6:Peripheral_actuation	1
-../Core/Src/hardware_abstaction.c:59:6:handle_can_tx	4
-../Core/Src/hardware_abstaction.c:74:6:add_can_message	1
-../Core/Src/hardware_abstaction.c:83:6:handle_uart_logs	2
-../Core/Src/hardware_abstaction.c:101:6:LED_indicator_controller	2
+../Core/Src/hardware_abstaction.c:20:10:millis	1
+../Core/Src/hardware_abstaction.c:36:6:Peripheral_aquisition	1
+../Core/Src/hardware_abstaction.c:45:6:Peripheral_actuation	1
+../Core/Src/hardware_abstaction.c:60:6:handle_can_tx	4
+../Core/Src/hardware_abstaction.c:75:6:add_can_message	1
+../Core/Src/hardware_abstaction.c:84:6:handle_uart_logs	2
+../Core/Src/hardware_abstaction.c:103:6:LED_indicator_controller	2

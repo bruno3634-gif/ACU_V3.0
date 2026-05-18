@@ -54,26 +54,11 @@ void app_init() {
 	 startup_sequence_state = Watchdog_check;
 
 
-	HAL_CAN_Start(&hcan1);
-
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_Samples, 4);
 
 	HAL_TIM_Base_Start(&htim8);
 	HAL_TIM_Base_Start_IT(&htim2);
 
-	/*char *enter_cmd = "$$$";
-	 char *set_name = "SN,ACU\r";
-	 char *reboot = "R,1\r";
-
-	 HAL_UART_Transmit(&huart2, (uint8_t*) enter_cmd, 3, 100);
-	 HAL_Delay(100); // Pequena pausa para o módulo responder CMD>
-
-	 // 2. Definir o nome
-	 HAL_UART_Transmit(&huart2, (uint8_t*) set_name, strlen(set_name), 100);
-	 HAL_Delay(100);
-
-	 // 3. Reiniciar para aplicar
-	 HAL_UART_Transmit(&huart2, (uint8_t*) reboot, strlen(reboot), 100);*/
 
 	CAN_FilterTypeDef can_filter;
 
@@ -97,17 +82,19 @@ void app_init() {
 	HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
 	HAL_Delay(200);
 
-	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_V3");
+	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_com");
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
 	HAL_Delay(100);
 
-	rn4871_cmd_exit_mode(cmd_buff, sizeof(cmd_buff));
-	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
-	HAL_Delay(100);
+	//rn4871_cmd_exit_mode(cmd_buff, sizeof(cmd_buff));
+	//HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
+	//HAL_Delay(100);
 
 	// 4. Agora sim, Reboot
 	rn4871_cmd_reboot(cmd_buff, sizeof(cmd_buff));
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
+
+
 }
 
 void app() {
@@ -116,7 +103,7 @@ void app() {
 	temporary_temp = t24.chip_temp;
 	Handle_state(prev_ASMS);
 	toggle_wdt();
-	//handle_uart_logs();
+	handle_uart_logs();
 	LED_indicator_controller();
 	ASSI_control(ASSI_leds_control_signal, Autonomous_state);
 	Peripheral_actuation();
@@ -142,7 +129,19 @@ void dbc_decode(){
 		autonomous_t26_vcu_ign_r2_d_unpack(&vcu_data, can_rx_data.tx_data, AUTONOMOUS_T26_VCU_IGN_R2_D_LENGTH);
 		t24.Ignition_Status = autonomous_t26_vcu_ign_r2_d_ignition_auto_decode(vcu_data.ignition_auto);
 		t24.vcu_sdc = autonomous_t26_vcu_ign_r2_d_shutdown_signal_decode(vcu_data.shutdown_signal);
-	break;
+		break;
+	case AUTONOMOUS_T26_JETSON_FRAME_ID:
+		struct autonomous_t26_jetson_t jetson_data;
+		autonomous_t26_jetson_unpack(&jetson_data, can_rx_data.tx_data,AUTONOMOUS_T26_JETSON_LENGTH);
+		t24.Autonomous_State = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+		t24.Jetson_mission = autonomous_t26_jetson_as_mission_decode(jetson_data.as_mission);
+		break;
+
+	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
+		struct autonomous_t26_vcu_rpm_t vcu_rpm;
+		autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
+		t24.rpm = autonomous_t26_vcu_rpm_rpm_actual_decode(vcu_rpm.rpm_actual);
+		break;
 	default:
 		break;
 	}

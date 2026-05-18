@@ -87,10 +87,6 @@ void Error_Handler(void);
 #define MS4_GPIO_Port GPIOC
 #define MS5_Pin GPIO_PIN_8
 #define MS5_GPIO_Port GPIOA
-#define MS6_Pin GPIO_PIN_9
-#define MS6_GPIO_Port GPIOA
-#define MS7_Pin GPIO_PIN_10
-#define MS7_GPIO_Port GPIOA
 #define ASMS_Pin GPIO_PIN_2
 #define ASMS_GPIO_Port GPIOD
 #define MS_BTN_Pin GPIO_PIN_3
@@ -148,8 +144,10 @@ struct car {
 	uint8_t vcu_sdc;
 	volatile AS_STATE_t Autonomous_State; 		// Autonomous system state
 	volatile current_mission_t Current_Mission; // Current mission state
+	volatile current_mission_t Jetson_mission;
 	struct speed Speed;
 	float chip_temp;
+	int rpm;
 };
 
 typedef enum {

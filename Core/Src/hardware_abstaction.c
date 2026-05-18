@@ -10,6 +10,7 @@
 
 extern int can_queue_index;
 extern struct can_queue can_tx_queue[64];
+static uint8_t UART_TxBuffer[512];
 
 extern uint32_t TX_MAILBOX;
 extern CAN_TxHeaderTypeDef can_tx_header;
@@ -84,7 +85,7 @@ void handle_uart_logs() {
 	static unsigned long timestamp = 0;
 
 	if (millis() - timestamp > 500) {
-		uint8_t UART_TxBuffer[512];
+
 
 
 
@@ -93,7 +94,8 @@ void handle_uart_logs() {
 						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%.2f\n\r\0",
 						t24.chip_temp, t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic);
 
-		HAL_UART_Transmit_DMA(&huart2, UART_TxBuffer, len);
+		//HAL_UART_Transmit_DMA(&huart1, UART_TxBuffer, len);
+		HAL_UART_Transmit(&huart1, UART_TxBuffer, len, 500);
 		timestamp = millis();
 	}
 }
