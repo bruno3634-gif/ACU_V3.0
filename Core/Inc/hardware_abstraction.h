@@ -19,6 +19,7 @@
 extern struct car t24;
 
 extern CAN_HandleTypeDef hcan1;
+extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 
 uint32_t millis();

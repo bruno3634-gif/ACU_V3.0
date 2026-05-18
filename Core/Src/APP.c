@@ -103,7 +103,7 @@ void app() {
 	temporary_temp = t24.chip_temp;
 	Handle_state(prev_ASMS);
 	toggle_wdt();
-	//handle_uart_logs();
+	handle_uart_logs();
 	LED_indicator_controller();
 	ASSI_control(ASSI_leds_control_signal, Autonomous_state);
 	Peripheral_actuation();
@@ -133,12 +133,14 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_JETSON_FRAME_ID:
 		struct autonomous_t26_jetson_t jetson_data;
 		autonomous_t26_jetson_unpack(&jetson_data, can_rx_data.tx_data,AUTONOMOUS_T26_JETSON_LENGTH);
-		t24.as_state = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+		t24.Autonomous_State = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+		t24.Jetson_mission = autonomous_t26_jetson_as_mission_decode(jetson_data.as_mission);
 		break;
 
 	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
 		struct autonomous_t26_vcu_rpm_t vcu_rpm;
-		t24.rpm = autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
+		autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
+		t24.rpm = autonomous_t26_vcu_rpm_rpm_actual_decode(vcu_rpm.rpm_actual);
 		break;
 	default:
 		break;

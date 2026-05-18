@@ -125,6 +125,7 @@ int main(void) {
 	MX_USART2_UART_Init();
 	MX_I2C1_Init();
 	MX_TIM2_Init();
+	MX_USART1_UART_Init();
 	/* USER CODE BEGIN 2 */
 	ema_init(&ema_front_pressure, 0.5f);
 	ema_init(&ema_rear_pressure, 0.5f);
@@ -173,8 +174,7 @@ void SystemClock_Config(void) {
 
 	/** Initializes the CPU, AHB and APB buses clocks
 	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
@@ -196,10 +196,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
 		float front_pressure = (raw_voltage_front - 0.5) / 0.4;
 		float rear_pressure = (raw_voltage_rear - 0.5) / 0.4;
 
-		t24.Front_Pressure.Pneumatic = ema_update(&ema_front_pressure,
-				front_pressure);
-		t24.Rear_Pressure.Pneumatic = ema_update(&ema_rear_pressure,
-				rear_pressure);
+		t24.Front_Pressure.Pneumatic = ema_update(&ema_front_pressure, front_pressure);
+		t24.Rear_Pressure.Pneumatic = ema_update(&ema_rear_pressure, rear_pressure);
 
 	}
 }
@@ -220,8 +218,7 @@ float GetTemperature(uint16_t raw_temp, uint16_t raw_vref) {
 	float ts_cal1 = (float) (*TS_CAL1_ADDR);
 	float ts_cal2 = (float) (*TS_CAL2_ADDR);
 
-	float temperature = ((raw_equiv_3v3 - ts_cal1)
-			* (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC) / (ts_cal2 - ts_cal1))
+	float temperature = ((raw_equiv_3v3 - ts_cal1) * (TEMP_CAL2_TEMPC - TEMP_CAL1_TEMPC) / (ts_cal2 - ts_cal1))
 			+ TEMP_CAL1_TEMPC;
 
 	return temperature;
@@ -251,8 +248,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		can_tx_header.DLC = AUTONOMOUS_T26_ACU_LENGTH;
 
 		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
-		//can_rx_buffer_push(&can_tx_ringbuffer, can_tx_header, tx_data);
 
+		struct autonomous_t26_dv_status_t dv_data;
+
+		dv_data.as_status = t24.Autonomous_State;
+		dv_data.ami_state = t24.Jetson_mission;
+		//dv_data.asb_ebs_state
 	}
 }
 
@@ -260,7 +261,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 	CAN_RxHeaderTypeDef rx_header;
 	uint8_t rx_data[8];
 
-	if(HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rx_header, rx_data) == HAL_OK){
+	if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rx_header, rx_data) == HAL_OK) {
 		can_rx_buffer_push(&can_rx_ringbuffer, rx_header, rx_data);
 
 	}

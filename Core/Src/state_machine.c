@@ -1,18 +1,31 @@
 #include "state_machine.h"
 
-
 void Handle_autonomous_state() {
 	switch (Autonomous_state) {
 	case Initial_Sequence:
-		initial_sequence(&t24,&startup_sequence_state,&Vehicle_state_machine);
+		initial_sequence(&t24, &startup_sequence_state, &Vehicle_state_machine);
 		break;
 	case Monitor_sequence:
+		if(t24.Current_Mission != t24.Jetson_mission){
+			Vehicle_state_machine = EMERGENCY;
+		}else if(t24.Autonomous_State == Finish){
+			Autonomous_state = Finish;
+		}
+
 		break;
 	case Finish:
 		/***
 		 * Ensure car stoped safely
 		 */
-		if (t24.ASMS == 0) {
+		if (t24.rpm <= 10) {
+			if (t24.ASMS == 0) {
+				t24.ASSI_state = 4;
+				t24.front_solenoid = 0;
+				t24.rear_solenoid = 0;
+				if(!t24.ASMS){
+					Vehicle_state_machine = IDLE;
+				}
+			}
 		}
 		break;
 	case AS_Emergency:
@@ -37,7 +50,7 @@ void Handle_Emergency() {
 }
 
 void Handle_state(uint8_t prev_asms_state) {
-	static uint8_t as_on_first_time = 0,finished_init_sequence = 0;
+	static uint8_t as_on_first_time = 0, finished_init_sequence = 0;
 	switch (Vehicle_state_machine) {
 	case Start:
 		t24.HW_WDT_Enable = 1;
@@ -54,9 +67,9 @@ void Handle_state(uint8_t prev_asms_state) {
 		}
 		break;
 	case AS_ON:
-		if(finished_init_sequence == 0 ){
+		if (finished_init_sequence == 0) {
 			Autonomous_state = Initial_Sequence;
-			if(!as_on_first_time){
+			if (!as_on_first_time) {
 				startup_sequence_state = Watchdog_check;
 				as_on_first_time = 1;
 			}
@@ -65,15 +78,15 @@ void Handle_state(uint8_t prev_asms_state) {
 		break;
 	case EMERGENCY:
 		Handle_Emergency();
+		if(t24.ASMS == 0 && t24.rpm < 10){
+			Vehicle_state_machine = IDLE;
+		}
 		break;
 	default:
+		Vehicle_state_machine = EMERGENCY;
 		break;
 	}
 }
-
-
-
-
 
 void toggle_wdt() {
 	static unsigned long wdt_time = 0;
