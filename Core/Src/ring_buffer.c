@@ -31,6 +31,7 @@ void can_rx_buffer_push(struct ring *ring_buffer, CAN_RxHeaderTypeDef  tx_header
 	if (ring_buffer->counter >= MAX_SIZE) {
 		return;
 	}
+	ring_buffer->queue[ring_buffer->head].arrival_time = HAL_GetTick();
 	ring_buffer->queue[ring_buffer->head].can_rx_header = tx_header;
 	memcpy(ring_buffer->queue[ring_buffer->head].tx_data, data, 8);
 

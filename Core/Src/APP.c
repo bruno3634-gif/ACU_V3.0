@@ -20,9 +20,13 @@ float temporary_temp = 0;
 Main_state_machine_t Vehicle_state_machine;
 Autonomous_System_states_t Autonomous_state;
 startup_sequence_state_t startup_sequence_state;
+Emergency_cause_t Emergency_cause = NONE;
 
 extern struct ring can_tx_ringbuffer;
 extern struct ring can_rx_ringbuffer;
+
+uint8_t prev_car_state = -1;
+uint8_t prev_as_state = -1;
 
 
 
@@ -82,7 +86,7 @@ void app_init() {
 	HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
 	HAL_Delay(200);
 
-	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_com");
+	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_LART");
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
 	HAL_Delay(100);
 
@@ -93,6 +97,7 @@ void app_init() {
 	// 4. Agora sim, Reboot
 	rn4871_cmd_reboot(cmd_buff, sizeof(cmd_buff));
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
+
 
 
 }
@@ -123,6 +128,7 @@ void dbc_decode(){
 		struct autonomous_t26_aqt7_t rear_dynamics;
 		autonomous_t26_aqt7_unpack(&rear_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT7_LENGTH);
 		t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_brk_press_decode(rear_dynamics.brk_press);
+		t24.VCU_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 		break;
 	case AUTONOMOUS_T26_VCU_IGN_R2_D_FRAME_ID:
 		struct autonomous_t26_vcu_ign_r2_d_t vcu_data;

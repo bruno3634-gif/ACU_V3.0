@@ -22,6 +22,7 @@
 #include "autonomous_t26.h"
 #include "rn4871.h"
 #include "ring_buffer.h"
+#include <stdint.h>
 
 
 

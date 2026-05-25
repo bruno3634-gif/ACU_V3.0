@@ -51,7 +51,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			break;
 
 		case HV_activation:
-			t24->Ignition_Request = 1;
+			t24->Ignition_Request = t24->ignition_pin_state;
 			if (t24->Ignition_Status) {
 				state_timer = millis();
 				*seq_status = Pressure_correlation_check;
@@ -142,11 +142,26 @@ void continuous_monitoring(uint8_t sdc_status,
 		Vehicle_state_machine = EMERGENCY;
 		return;
 	}
-
-	if (check_timeout(last_message_from->jetson, 500) ||
-		check_timeout(last_message_from->res, 500) ||
-		check_timeout(last_message_from->vcu, 500)) {
+	uint8_t res = module_timeout();
+	if (res != NO_TIMEOUT) {
 		Vehicle_state_machine = EMERGENCY;
+		switch (res) {
+			case VCU_TIMEOUT:
+				Emergency_cause = VCU_Timeout;
+				break;
+			case JETSON_TIMEOUT:
+				Emergency_cause = Jetson_timeout;
+				break;
+			case PRESSURE_TIMEOUT:
+				Emergency_cause = Dynamics_REAR_Pressure_timeout;
+				break;
+			case DIR_TIMEOUT:
+				Emergency_cause = dir_actuator_timeout;
+				break;
+			default:
+				Emergency_cause = UNKOWN;
+				break;
+		}
 		return;
 	}
 
@@ -186,6 +201,7 @@ int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
 	static unsigned long prev_time_yellow = 0;
 	static unsigned long prev_time_blue = 0;
 
+
 	switch (ASSI_state) {
 	case 0:
 		gpio_state = 0;
@@ -213,7 +229,7 @@ int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
 	default:
 		break;
 	}
-
+	return gpio_state;
 }
 
 bool check_timeout(uint32_t start_time, uint32_t limit) {
@@ -221,5 +237,17 @@ bool check_timeout(uint32_t start_time, uint32_t limit) {
 		return true;
 	}
 	return false;
+}
+
+
+uint8_t module_timeout(){
+
+	uint32_t current_time = millis();
+
+	if(current_time - t24.VCU_LAST_TX > MAX_TIMEOUT)return VCU_TIMEOUT;
+	if(current_time - t24.REAR_PRESSURE_LAST_TX > MAX_TIMEOUT) return PRESSURE_TIMEOUT;
+	if(current_time - t24.JETSON_LAST_TX > MAX_TIMEOUT) return JETSON_TIMEOUT;
+
+	return 0;
 }
 

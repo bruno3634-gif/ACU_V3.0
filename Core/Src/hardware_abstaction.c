@@ -84,18 +84,18 @@ void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
 void handle_uart_logs() {
 	static unsigned long timestamp = 0;
 
-	if (millis() - timestamp > 500) {
+	if (millis() - timestamp > 1000) {
 
 
 
 
 		int len =
 				snprintf(UART_TxBuffer, sizeof(UART_TxBuffer),
-						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%.2f\n\r\0",
+						"Chip temperature:%.2f\n\rRear pressure:%.2f\n\rFront Pressure:%.2f\n\r",
 						t24.chip_temp, t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic);
 
-		//HAL_UART_Transmit_DMA(&huart1, UART_TxBuffer, len);
-		HAL_UART_Transmit(&huart1, UART_TxBuffer, len, 500);
+		HAL_UART_Transmit_DMA(&huart1, UART_TxBuffer, len);
+		//HAL_UART_Transmit(&huart1, UART_TxBuffer, len, 500);
 		timestamp = millis();
 	}
 }
@@ -103,15 +103,9 @@ void handle_uart_logs() {
 void LED_indicator_controller() {
 	static unsigned long timestamp = 0;
 
-	if (millis() - timestamp >= 500) {
+	if (millis() - timestamp >= 1000) {
 		HAL_GPIO_TogglePin(HB_GPIO_Port, HB_Pin);
 		timestamp = millis();
-
-		can_tx_header.IDE = CAN_ID_STD;
-		can_tx_header.RTR = CAN_RTR_DATA;
-		can_tx_header.DLC = 1;
-		tx_data[0] = 0xFF;
-
 	}
 
 }

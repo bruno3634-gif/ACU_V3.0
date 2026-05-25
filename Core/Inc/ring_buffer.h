@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define MAX_SIZE 64
+#define MAX_SIZE 1024
 
 struct ring {
 	uint32_t head;

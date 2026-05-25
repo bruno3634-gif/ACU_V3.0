@@ -97,6 +97,9 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
+
+#define CAN_MSG_MAX_TIMEOUT 1000
+
 typedef enum {
 	AS_STATE_OFF = 1,       // 0
 	AS_STATE_READY = 2,     // 1
@@ -114,6 +117,21 @@ typedef enum {
 	INSPECTION,   // 6
 	AUTOCROSS     // 7
 } current_mission_t;
+
+
+typedef enum{
+	NONE,
+	SDC_OPEN,
+	RES,
+	Pressure_checks,
+	VCU_Timeout,
+	Jetson_timeout,
+	ACU_WDT_TRIGERED,
+	dir_actuator_timeout,
+	Dynamics_REAR_Pressure_timeout,
+	UNKOWN
+}Emergency_cause_t;
+
 
 struct pressure {
 	float Pneumatic;
@@ -148,6 +166,7 @@ struct car {
 	struct speed Speed;
 	float chip_temp;
 	int rpm;
+	uint32_t VCU_LAST_TX,REAR_PRESSURE_LAST_TX,JETSON_LAST_TX,DIR_ACTUATOR_LAST_TX;
 };
 
 typedef enum {
@@ -163,6 +182,15 @@ typedef enum {
 	Finish,
 	AS_Emergency
 }Autonomous_System_states_t;
+
+
+typedef enum {
+	NO_TIMEOUT,
+	VCU_TIMEOUT,
+	JETSON_TIMEOUT,
+	PRESSURE_TIMEOUT,
+	DIR_TIMEOUT
+}can_timeouts_t;
 
 
 typedef enum{
@@ -186,6 +214,7 @@ struct can_queue {
 	CAN_TxHeaderTypeDef can_tx_header;
 	CAN_RxHeaderTypeDef can_rx_header;
 	uint8_t tx_data[8];
+	uint32_t arrival_time;
 };
 
 /* USER CODE END Private defines */

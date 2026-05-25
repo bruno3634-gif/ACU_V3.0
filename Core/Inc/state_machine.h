@@ -14,6 +14,7 @@
 extern Main_state_machine_t Vehicle_state_machine;
 extern Autonomous_System_states_t Autonomous_state;
 extern startup_sequence_state_t startup_sequence_state;
+extern Emergency_cause_t Emergency_cause;
 
 void Handle_state(uint8_t prev_asms_state);
 void Handle_autonomous_state();

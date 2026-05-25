@@ -10,10 +10,17 @@
 
 #include "main.h"
 #include <stdbool.h>
+#include "hardware_abstraction.h"
 
 #define SKIP_REAR_PRESSURE_CHECK 1
+#define MAX_TIMEOUT 1000
 
 extern Main_state_machine_t Vehicle_state_machine;
+extern struct ring can_rx_ringbuffer;
+extern Emergency_cause_t Emergency_cause;
+extern struct car t24;
+
+
 
 
 void initial_sequence(struct car *v, startup_sequence_state_t *seq_status,
@@ -23,5 +30,7 @@ void continuous_monitoring(uint8_t sdc_status,
 		float Front_pneumatic, float Rear_hydraulic, float Front_hydraulic);
 int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state);
 bool check_timeout(uint32_t start_time, uint32_t limit);
+uint8_t module_timeout();
+
 
 #endif /* INC_AUTONOMOUS_FUNCTIONS_H_ */

@@ -94,7 +94,6 @@ void toggle_wdt() {
 	if (millis() - wdt_time >= 10) {
 		if (t24.HW_WDT_Enable == 1) {
 			HAL_GPIO_TogglePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin);
-			//HAL_GPIO_WritePin(WDT_PULSE_GPIO_Port, WDT_PULSE_Pin, GPIO_PIN_SET);
 			wdt_time = millis();
 		}
 	}
