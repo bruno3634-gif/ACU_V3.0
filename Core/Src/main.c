@@ -22,6 +22,7 @@
 #include "can.h"
 #include "dma.h"
 #include "i2c.h"
+#include "rtc.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -127,6 +128,7 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM2_Init();
   MX_USART1_UART_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
 	ema_init(&ema_front_pressure, 0.5f);
 	ema_init(&ema_rear_pressure, 0.5f);
@@ -161,8 +163,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSEState = RCC_LSE_BYPASS;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 4;
@@ -259,6 +263,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		dv_data.as_status = t24.Autonomous_State;
 		dv_data.ami_state = t24.Jetson_mission;
 		//dv_data.asb_ebs_state
+
+		autonomous_t26_dv_status_pack(tx_data, &dv_data, AUTONOMOUS_T26_DV_STATUS_LENGTH);
+
+
+		struct autonomous_t26_asf_signals_t asf_signals;
+		asf_signals.brake_pressure_front = t24.Front_Pressure.Hydraulic;
+		asf_signals.brake_pressure_rear = t24.Rear_Pressure.Hydraulic;
+		asf_signals.ebs_pressure_tank_front = t24.Front_Pressure.Pneumatic;
+		asf_signals.ebs_pressure_tank_rear = t24.Rear_Pressure.Pneumatic;
+		autonomous_t26_asf_signals_pack(tx_data,&asf_signals , AUTONOMOUS_T26_ASF_SIGNALS_LENGTH);
+		can_tx_header.StdId = AUTONOMOUS_T26_ASF_SIGNALS_FRAME_ID;
+		can_tx_header.RTR = CAN_RTR_DATA;
+		can_tx_header.DLC = AUTONOMOUS_T26_ASF_SIGNALS_LENGTH;
+
+		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 	}
 }
 

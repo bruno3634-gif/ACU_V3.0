@@ -81,12 +81,31 @@ void app_init() {
 	HAL_CAN_Start(&hcan1);
 
 	char cmd_buff[64];
+	char rx[64];
 	int len;
+	// Step 1 - enter command mode
+	HAL_UART_Transmit(&huart2, (uint8_t*)"$$$", 3, 100);
+	HAL_Delay(300);  // RN4871 needs time to respond
 
-	HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
+	// Step 2 - read "CMD>" response
+	HAL_UART_Receive(&huart2, (uint8_t*)rx, 64, 500);
+	// <<< BREAKPOINT HERE - is rx == "CMD>" ?
+
+	memset(rx, 0, sizeof(rx));
+
+	// Step 3 - send V
+	HAL_UART_Transmit(&huart2, (uint8_t*)"V\r\n", 3, 100);
+	HAL_Delay(100);
+
+	// Step 4 - read version response
+	HAL_UART_Receive(&huart2, (uint8_t*)rx, 64, 500);
+	// <<< BREAKPOINT HERE - do you see version string?
+
+	/*HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
 	HAL_Delay(200);
 
-	rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_LART");
+	/*rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_LART");
+	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);*/
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
 	HAL_Delay(100);
 

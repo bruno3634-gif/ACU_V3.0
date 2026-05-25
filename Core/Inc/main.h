@@ -133,6 +133,24 @@ typedef enum{
 }Emergency_cause_t;
 
 
+typedef enum{
+	BLE_IDLE,
+	BLE_ENTER_CMD,
+	BLE_CONNECT,
+	BLE_READ_CURRENT_TIME, // BLE CTS
+	BLE_PROCESS_DATE,
+	BLE_EXIT_CMD,
+	BLE_BRIDGE
+}BLE_STATE_MACHINE_t;
+
+typedef enum {
+    CTS_RESULT_PENDING,
+    CTS_RESULT_OK,
+    CTS_RESULT_NO_DEVICE,
+    CTS_RESULT_TIMEOUT,
+    CTS_RESULT_PARSE_ERROR
+} CTS_Result;
+
 struct pressure {
 	float Pneumatic;
 	float Hydraulic;
