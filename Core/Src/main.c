@@ -37,12 +37,17 @@
 #include "rn4871.h"
 #include "EMA_Filter.h"
 #include <stdio.h>
+#include "ee24.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 uint32_t ADC_Samples[4];
+volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
+volatile uint8_t uart_log_dump = 0;
+
+extern DMA_HandleTypeDef hdma_usart2_rx;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -130,9 +135,13 @@ int main(void)
   MX_USART1_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE);
+	uint32_t state = huart2.RxState;  // should be 0x22 (BUSY_RX)
+	uint32_t dma_ndtr = hdma_usart2_rx.Instance->NDTR;
 	ema_init(&ema_front_pressure, 0.5f);
 	ema_init(&ema_rear_pressure, 0.5f);
 	app_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -266,13 +275,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		autonomous_t26_dv_status_pack(tx_data, &dv_data, AUTONOMOUS_T26_DV_STATUS_LENGTH);
 
-
 		struct autonomous_t26_asf_signals_t asf_signals;
 		asf_signals.brake_pressure_front = t24.Front_Pressure.Hydraulic;
 		asf_signals.brake_pressure_rear = t24.Rear_Pressure.Hydraulic;
 		asf_signals.ebs_pressure_tank_front = t24.Front_Pressure.Pneumatic;
 		asf_signals.ebs_pressure_tank_rear = t24.Rear_Pressure.Pneumatic;
-		autonomous_t26_asf_signals_pack(tx_data,&asf_signals , AUTONOMOUS_T26_ASF_SIGNALS_LENGTH);
+		autonomous_t26_asf_signals_pack(tx_data, &asf_signals, AUTONOMOUS_T26_ASF_SIGNALS_LENGTH);
 		can_tx_header.StdId = AUTONOMOUS_T26_ASF_SIGNALS_FRAME_ID;
 		can_tx_header.RTR = CAN_RTR_DATA;
 		can_tx_header.DLC = AUTONOMOUS_T26_ASF_SIGNALS_LENGTH;
@@ -290,6 +298,35 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 
 	}
 
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	if (GPIO_Pin == MS_BTN_Pin) {
+		t24.Current_Mission++;
+		if (t24.Current_Mission > AUTOCROSS) {
+			t24.Current_Mission = MANUAL;
+		}
+	}
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+	if (huart->Instance == USART2) {
+		char cmd[RX_BUFFER_SIZE] = { 0 };
+
+		uint8_t j = 0;
+
+		for (uint8_t i = 0; i < Size && j < RX_BUFFER_SIZE - 1; i++) {
+			char c = (char) rx_buffer[i];
+			if (c == '\r' || c == '\n' || c == ' ')
+				continue;
+			cmd[j++] = tolower(c);
+		}
+
+		if (strcmp(cmd, "log") == 0)
+			uart_log_dump = 1;
+		if (strcmp(cmd, "resume") == 0)
+			uart_log_dump = 0;
+	}
 }
 
 /* USER CODE END 4 */

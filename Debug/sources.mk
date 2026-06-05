@@ -41,5 +41,6 @@ SUBDIRS := \
 Core/Inc \
 Core/Src \
 Core/Startup \
+Drivers/24FC08 \
 Drivers/STM32F4xx_HAL_Driver/Src \
 

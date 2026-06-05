@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#define RX_BUFFER_SIZE 32
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -101,11 +101,11 @@ void Error_Handler(void);
 #define CAN_MSG_MAX_TIMEOUT 1000
 
 typedef enum {
-	AS_STATE_OFF = 1,       // 0
-	AS_STATE_READY = 2,     // 1
-	AS_STATE_DRIVING = 3,   // 2
-	AS_STATE_EMERGENCY = 4, // 3
-	AS_STATE_FINISHED = 5   // 4
+	AS_STATE_OFF = 1,       // 1
+	AS_STATE_READY = 2,     // 2
+	AS_STATE_DRIVING = 3,   // 3
+	AS_STATE_EMERGENCY = 4, // 4
+	AS_STATE_FINISHED = 5   // 5
 } AS_STATE_t;
 
 typedef enum {
@@ -197,8 +197,9 @@ typedef enum {
 	OFF,
 	Initial_Sequence,
 	Monitor_sequence,
-	Finish,
-	AS_Emergency
+	AS_Emergency,
+	Finish
+
 }Autonomous_System_states_t;
 
 

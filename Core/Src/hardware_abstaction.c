@@ -52,6 +52,9 @@ void Peripheral_actuation() {
 	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin,
 					!t24.front_solenoid);
 
+	extern uint8_t ASSI_leds_control_signal;
+	HAL_GPIO_WritePin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin, ASSI_leds_control_signal && 0b00000010);
+	HAL_GPIO_WritePin(ASSI_YELLOW_GPIO_Port, ASSI_YELLOW_Pin, ASSI_leds_control_signal && 0b00000001);
 }
 
 

@@ -187,11 +187,11 @@ int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
 	 * -------------------------------------------------------------------------
 	 * AS STATE        | ILLUMINATION STATUS
 	 * ----------------|--------------------------------------------------------
-	 * AS Off          | Off						0
-	 * AS Ready        | Yellow (Continuous)		1
-	 * AS Driving      | Yellow (Flashing)			2
-	 * AS Emergency    | Blue (Flashing)			3
-	 * AS Finished     | Blue (Continuous)			4
+	 * AS Off          | Off						1
+	 * AS Ready        | Yellow (Continuous)		2
+	 * AS Driving      | Yellow (Flashing)			3
+	 * AS Emergency    | Blue (Flashing)			4
+	 * AS Finished     | Blue (Continuous)			5
 	 * -------------------------------------------------------------------------
 	 *During “AS Driving” and “AS Emergency” the ASSIs must be flashing continuously with a
 	 *frequency between 2 Hz and 5 Hz and a duty cycle of 50 %.
@@ -203,27 +203,27 @@ int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state) {
 
 
 	switch (ASSI_state) {
-	case 0:
+	case AS_STATE_OFF:
 		gpio_state = 0;
 		break;
-	case (1):
+	case AS_STATE_READY:
 		gpio_state = 0b00000001;
 		break;
-	case 2:
+	case AS_STATE_DRIVING:
 		if (millis() - prev_time_yellow >= 330) {
 			gpio_state ^= 1;
 			gpio_state &= 0b00000001;
 			prev_time_yellow = millis();
 		}
 		break;
-	case 3:
+	case AS_STATE_EMERGENCY:
 		if (millis() - prev_time_blue >= 330) {
 			gpio_state ^= 0b00000010;
 			gpio_state &= 0b00000010;
 			prev_time_blue = millis();
 		}
 		break;
-	case 4:
+	case AS_STATE_FINISHED:
 		gpio_state = 0b00000010;
 		break;
 	default:
@@ -251,3 +251,6 @@ uint8_t module_timeout(){
 	return 0;
 }
 
+uint32_t emergency_blame(){
+
+}

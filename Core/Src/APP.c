@@ -80,7 +80,7 @@ void app_init() {
 	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 	HAL_CAN_Start(&hcan1);
 
-	char cmd_buff[64];
+/*	char cmd_buff[64];
 	char rx[64];
 	int len;
 	// Step 1 - enter command mode
@@ -104,8 +104,7 @@ void app_init() {
 	/*HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
 	HAL_Delay(200);
 
-	/*rn4871_set_name(cmd_buff, sizeof(cmd_buff), "ACU_LART");
-	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);*/
+
 	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
 	HAL_Delay(100);
 
@@ -115,8 +114,11 @@ void app_init() {
 
 	// 4. Agora sim, Reboot
 	rn4871_cmd_reboot(cmd_buff, sizeof(cmd_buff));
-	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
+	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);*/
 
+	t24.ASSI_state = AS_STATE_EMERGENCY;
+	extern volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
+	//HAL_UART_Receive_(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE);
 
 
 }
@@ -127,13 +129,11 @@ void app() {
 	temporary_temp = t24.chip_temp;
 	Handle_state(prev_ASMS);
 	toggle_wdt();
-	handle_uart_logs();
+	//handle_uart_logs();
 	LED_indicator_controller();
-	ASSI_control(ASSI_leds_control_signal, Autonomous_state);
+	ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);
 	Peripheral_actuation();
-	HAL_GPIO_WritePin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin, 1);
 	handle_can_tx();
-	//can_buffer_pop(&can_tx_ringbuffer, 1,NULL);
 	can_buffer_pop(&can_rx_ringbuffer, 0,&can_rx_data);
 	dbc_decode();
 }
