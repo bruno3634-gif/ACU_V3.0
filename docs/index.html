@@ -3,986 +3,409 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Analog Watchdog — Interactive Circuit</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<title>ACU v3 — Documentation</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;
+  --bg2:#161b22;
+  --fg:#e6edf3;
+  --fg2:#8b949e;
+  --accent:#58a6ff;
+  --green:#3fb950;
+  --red:#f85149;
+  --orange:#d29922;
+  --purple:#bc8cff;
+  --border:#30363d;
+  --radius:8px;
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--fg);
+  line-height:1.6;
+  display:flex;
+  min-height:100vh;
+}
 
-  :root {
-    --bg: #0a0e14;
-    --bg2: #111720;
-    --bg3: #161e2a;
-    --border: #1e2d40;
-    --accent: #00d4ff;
-    --accent2: #00ff9d;
-    --warn: #ffaa00;
-    --danger: #ff4466;
-    --text: #c8d8e8;
-    --text2: #607080;
-    --green: #00c97a;
-    --red: #ff3355;
-    --wire: #2a4060;
-    --wire-active: #00aaff;
-    --wire-trip: #ff3355;
-  }
+/* ───── Sidebar ───── */
+.sidebar{
+  width:200px;
+  flex-shrink:0;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  padding:24px 0;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow-y:auto;
+}
+.sidebar-header{
+  font-size:.7rem;
+  font-weight:600;
+  color:var(--fg2);
+  padding:0 20px 16px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:8px;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+}
+.sidebar a{
+  display:block;
+  padding:6px 20px;
+  font-size:.82rem;
+  color:var(--fg2);
+  text-decoration:none;
+  transition:color .15s;
+}
+.sidebar a:hover{color:var(--fg)}
+.sidebar .ext-link{
+  margin-top:12px;
+  border-top:1px solid var(--border);
+  padding-top:12px;
+  color:var(--green);
+}
+.sidebar .ext-link:hover{color:var(--green)}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ───── Main ───── */
+.main{
+  flex:1;
+  min-width:0;
+  max-width:960px;
+  padding:40px 48px 80px;
+}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Space Grotesk', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+/* ───── Hero ───── */
+.hero{
+  margin-bottom:48px;
+  padding-bottom:32px;
+  border-bottom:1px solid var(--border);
+}
+.hero h1{
+  font-size:2rem;
+  font-weight:700;
+  color:var(--fg);
+  margin-bottom:4px;
+}
+.hero .subtitle{
+  font-size:.92rem;
+  color:var(--fg2);
+  margin-bottom:16px;
+}
+.tags{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.tag{
+  display:inline-block;
+  padding:2px 10px;
+  border-radius:4px;
+  font-size:.72rem;
+  font-weight:500;
+  font-family:'JetBrains Mono',monospace;
+  color:var(--fg2);
+  border:1px solid var(--border);
+}
 
-  .header {
-    padding: 1.2rem 2rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--bg2);
-  }
+/* ───── Intro ───── */
+.intro{
+  margin-bottom:40px;
+  font-size:.92rem;
+  color:var(--fg2);
+  line-height:1.7;
+}
+.intro strong{color:var(--fg)}
 
-  .header-left h1 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--accent);
-    letter-spacing: 0.05em;
-  }
-  .header-left p {
-    font-size: 12px;
-    color: var(--text2);
-    margin-top: 2px;
-    font-family: 'JetBrains Mono', monospace;
-  }
+/* ───── Sections ───── */
+section{margin-bottom:48px}
+.section-title{
+  font-size:1.25rem;
+  font-weight:600;
+  color:var(--fg);
+  margin-bottom:6px;
+}
+.section-desc{
+  font-size:.88rem;
+  color:var(--fg2);
+  margin-bottom:20px;
+  line-height:1.6;
+}
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
+/* ───── Diagram boxes ───── */
+.diagram-box{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px 16px;
+  margin-bottom:20px;
+  overflow-x:auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.diagram-box img{max-width:100%;height:auto;display:block}
+.caption{
+  font-size:.78rem;
+  color:var(--fg2);
+  margin-top:10px;
+  text-align:center;
+  max-width:600px;
+}
 
-  .status-pill {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 500;
-    border: 1px solid;
-    transition: all 0.3s;
-  }
-  .status-pill.ok { border-color: var(--green); color: var(--green); background: rgba(0,201,122,0.08); }
-  .status-pill.tripped { border-color: var(--red); color: var(--red); background: rgba(255,51,85,0.08); }
-  .status-pill.warning { border-color: var(--warn); color: var(--warn); background: rgba(255,170,0,0.08); }
+/* ───── Tabs ───── */
+.tabs{
+  display:flex;
+  gap:2px;
+  margin-bottom:16px;
+  flex-wrap:wrap;
+  border-bottom:1px solid var(--border);
+}
+.tab-btn{
+  padding:8px 16px;
+  border:none;
+  background:none;
+  color:var(--fg2);
+  cursor:pointer;
+  font-family:'Inter',sans-serif;
+  font-size:.82rem;
+  font-weight:500;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  transition:color .15s,border-color .15s;
+}
+.tab-btn:hover{color:var(--fg)}
+.tab-btn.active{
+  color:var(--accent);
+  border-bottom-color:var(--accent);
+}
+.tab-content{display:none}
+.tab-content.active{display:block}
 
-  .pulse-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    animation: blink 1s infinite;
-  }
-  .ok .pulse-dot { background: var(--green); }
-  .tripped .pulse-dot { background: var(--red); animation: none; }
-  .warning .pulse-dot { background: var(--warn); }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+/* ───── Module grid ───── */
+.module-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:16px;
+}
+.module-card{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.module-card h3{
+  font-size:.85rem;
+  font-weight:600;
+  color:var(--fg);
+  margin-bottom:12px;
+  width:100%;
+  font-family:'JetBrains Mono',monospace;
+}
+.module-card img{max-width:100%;height:auto;display:block}
 
-  .main {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    height: calc(100vh - 60px);
-  }
+/* ───── Legend ───── */
+.legend{
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  font-size:.82rem;
+  color:var(--fg2);
+}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
 
-  .circuit-panel {
-    padding: 1.5rem;
-    overflow: hidden;
-    position: relative;
-    border-right: 1px solid var(--border);
-  }
-
-  .circuit-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--text2);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .circuit-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  svg#circuit {
-    width: 100%;
-    height: calc(100% - 40px);
-    display: block;
-  }
-
-  .side-panel {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .controls-area {
-    padding: 1rem 1.2rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg2);
-  }
-
-  .ctrl-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text2);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: .75rem;
-  }
-
-  .ctrl-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .ctrl-row label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text2);
-    width: 90px;
-    flex-shrink: 0;
-  }
-  .ctrl-row input[type=range] {
-    flex: 1;
-    accent-color: var(--accent);
-    height: 3px;
-  }
-  .ctrl-row .val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-    width: 52px;
-    text-align: right;
-    flex-shrink: 0;
-  }
-
-  .btn-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  button {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    border: 1px solid;
-    transition: all 0.15s;
-    font-weight: 500;
-  }
-  .btn-freeze {
-    border-color: var(--warn);
-    color: var(--warn);
-    background: rgba(255,170,0,0.08);
-  }
-  .btn-freeze:hover { background: rgba(255,170,0,0.18); }
-  .btn-freeze:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-resume {
-    border-color: var(--green);
-    color: var(--green);
-    background: rgba(0,201,122,0.08);
-  }
-  .btn-resume:hover { background: rgba(0,201,122,0.18); }
-  .btn-resume:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-reset {
-    border-color: var(--border);
-    color: var(--text2);
-    background: transparent;
-    margin-left: auto;
-  }
-  .btn-reset:hover { border-color: var(--text2); color: var(--text); }
-
-  .plot-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem 1.2rem;
-    background: var(--bg);
-  }
-
-  .plot-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text2);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: .75rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .node-plots {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .node-plot-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: .7rem .9rem;
-    transition: border-color 0.2s;
-  }
-  .node-plot-card.active { border-color: var(--accent); }
-
-  .node-plot-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-  .node-plot-name {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--accent);
-  }
-  .node-plot-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-  }
-  .node-plot-desc {
-    font-size: 10px;
-    color: var(--text2);
-    margin-bottom: 6px;
-  }
-  .ch-wrap { position: relative; height: 60px; }
-
-  .hint {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text2);
-    text-align: center;
-    padding: 1rem;
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-  }
-
-  /* SVG node styles */
-  .node-hit {
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .node-hit:hover .node-circle { filter: brightness(1.5); }
-  .node-circle {
-    transition: all 0.2s;
-  }
-
-  .component-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    fill: #607080;
-    pointer-events: none;
-  }
-  .component-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 8px;
-    fill: #405060;
-    pointer-events: none;
-  }
-  .wire { stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  .wire-bg { stroke: var(--wire); }
-  .wire-sig { stroke: var(--wire-active); stroke-width: 2; opacity: 0; transition: opacity 0.3s; }
-  .wire-sig.on { opacity: 1; }
-  .wire-trip { stroke: var(--wire-trip); stroke-width: 2; opacity: 0; transition: opacity 0.3s; }
-  .wire-trip.on { opacity: 1; }
-
-  .comp-body { fill: var(--bg3); stroke: #2a4060; stroke-width: 1; }
-  .comp-body-active { fill: #0d1f30; stroke: #00aaff; stroke-width: 1.5; }
-
-  .section-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 8px;
-    fill: #2a4060;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  .vcc-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #ffaa00; }
-  .gnd-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #405060; }
-
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .plot-area::-webkit-scrollbar { width: 3px; }
+/* ───── Media ───── */
+@media(max-width:768px){
+  body{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--border);padding:12px 0}
+  .sidebar-header{display:none}
+  .sidebar a{display:inline-block;padding:4px 12px;font-size:.78rem}
+  .sidebar .ext-link{border-top:none;margin-top:0;padding-top:0}
+  .main{padding:24px 20px}
+  .module-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="header-left">
-    <h1>ANALOG_WATCHDOG.SchDoc</h1>
-    <p>hardware circuit simulator — click any node to probe voltage</p>
-  </div>
-  <div class="header-right">
-    <div class="status-pill ok" id="status-pill">
-      <div class="pulse-dot"></div>
-      <span id="status-text">MCU RUNNING</span>
-    </div>
-  </div>
-</div>
+<nav class="sidebar">
+  <div class="sidebar-header">Contents</div>
+  <a href="#intro">Introduction</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#state-machines">State Machines</a>
+  <a href="#main-loop">Main Loop</a>
+  <a href="#modules">Module Flowcharts</a>
+  <a href="#legend">Legend</a>
+  <a href="watchdog.html" class="ext-link">▶ WDT Simulator</a>
+</nav>
 
 <div class="main">
-  <div class="circuit-panel">
-    <div class="circuit-title">schematic view</div>
-    <svg id="circuit" viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg">
 
-      <!-- Background grid -->
-      <defs>
-        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#111820" stroke-width="0.5"/>
-        </pattern>
-        <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L6,3 z" fill="#00aaff"/>
-        </marker>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-          <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <rect width="720" height="440" fill="url(#grid)"/>
+<header class="hero">
+  <h1>ACU v3</h1>
+  <p class="subtitle">Autonomous Control Unit — STM32F412Rx / Formula Student T26</p>
+  <div class="tags">
+    <span class="tag">C</span>
+    <span class="tag">STM32CubeMX</span>
+    <span class="tag">CAN 2.0</span>
+    <span class="tag">BLE 4.2</span>
+    <span class="tag">Watchdog HW</span>
+    <span class="tag">EBS Brake</span>
+  </div>
+</header>
 
-      <!-- Section labels -->
-      <text x="30" y="22" class="section-label">① PULSE INPUT</text>
-      <text x="190" y="22" class="section-label">② RC INTEGRATOR</text>
-      <text x="360" y="22" class="section-label">③ COMPARATOR IC4</text>
-      <text x="540" y="22" class="section-label">④ RELAY K1</text>
+<!-- ───── Introduction ───── -->
+<section id="intro">
+  <h2 class="section-title">Introduction</h2>
+  <div class="intro">
+    <p>The <strong>ACU (Autonomous Control Unit)</strong> is the safety unit that guarantees the safety of the car during autonomous mode. It is built around an <strong>STM32F412Rx</strong> microcontroller and is responsible for monitoring the autonomous system, communicating with other ECUs, and triggering the solenoid-based brake system, pressure sensors, and watchdog timer in case of a fault.</p>
+    <p style="margin-top:12px">The ACU communicates with three external ECUs — <strong>JETSON</strong> (0x061), <strong>VCU</strong> (0x600), and <strong>DV/AQT</strong> (0x770/0x502) — over a <strong>CAN bus at 1 Mbps</strong>. It reads pressure via ADC, extracts event logs from EEPROM via BLE (emergencies, hardfaults, etc.), controls the ASSI visual LEDs via a MOSFET and a GPIO pin, drives the EBS brake solenoid, and manages the hardware watchdog timer. If the system detects a fault — such as a timeout, sensor mismatch, or ASMS deactivation — the ACU triggers an emergency shutdown.</p>
+    <p style="margin-top:12px">This document describes the system architecture, the state machines that drive the firmware, the main loop execution flow, and detailed flowcharts for each module.</p>
+  </div>
+</section>
 
-      <!-- ======== SECTION 1: MCU PULSE + TRANSISTOR Q12 ======== -->
+<!-- ───── Architecture ───── -->
+<section id="architecture">
+  <h2 class="section-title">Architecture Overview</h2>
+  <p class="section-desc">The ACU monitors the autonomous system and intervenes when a fault is detected. Three external ECUs communicate over the CAN bus: the JETSON (mission computer), the VCU (vehicle control unit), and the DV/AQT (data logger / aquisition). Onboard, the ACU controls the brake solenoid via the EBS driver, reads pressure via ADC, extracts event logs from EEPROM via BLE (emergencies, hardfaults, etc.), controls the ASSI visual LEDs via a MOSFET and a GPIO pin, and manages the hardware watchdog to ensure the car enters a safe state in case of failure.</p>
+  <div class="diagram-box">
+    <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZ3JhcGggTFJcbiAgICBzdWJncmFwaCBleHRbRXh0ZXJuYWwgRUNVc11cbiAgICAgICAgSkVUU09OW1wiSkVUU09OICgweDA2MSlcIl1cbiAgICAgICAgVkNVW1wiVkNVICgweDYwMClcIl1cbiAgICAgICAgRFZBUVRbXCJEViAvIEFRVCAoMHg3NzAgLyAweDUwMilcIl1cbiAgICBlbmRcbiAgICBzdWJncmFwaCBhY3VbQUNVIC0gU1RNMzJGNDEyUnhdXG4gICAgICAgIEFDVVtcIkFDVSB2M1wiXVxuICAgIGVuZFxuICAgIHN1YmdyYXBoIHBlcmlbT25ib2FyZCBQZXJpcGhlcmFsc11cbiAgICAgICAgQ0FOW1wiQ0FOIEJ1cyAoMSBNYnBzKVwiXVxuICAgICAgICBBRENbXCJBREMgKyBETUEgKFByZXNzdXJlKVwiXVxuICAgICAgICBVQVJUW1wiVUFSVCArIEdQSU8gKEJMRSAvIEFTU0kpXCJdXG4gICAgICAgIFNPTFtcIlNvbGVub2lkIERyaXZlciAoRUJTKVwiXVxuICAgICAgICBUSU1bXCJUSU0gKyBJMkMgKFdEVCAvIEVFUFJPTSlcIl1cbiAgICBlbmRcbiAgICBKRVRTT04gLS0tIEFDVVxuICAgIFZDVSAtLS0gQUNVXG4gICAgRFZBUVQgLS0tIEFDVVxuICAgIEFDVSAtLS0gQ0FOXG4gICAgQUNVIC0tLSBBRENcbiAgICBBQ1UgLS0tIFVBUlRcbiAgICBBQ1UgLS0tIFNPTFxuICAgIEFDVSAtLS0gVElNIiwibWVybWFpZCI6eyJ0aGVtZSI6ImRhcmsifSwidGhlbWVWYXJpYWJsZXMiOnsicHJpbWFyeUNvbG9yIjoiIzFhMjUzMCIsInByaW1hcnlUZXh0Q29sb3IiOiIjYjNjN2U1IiwicHJpbWFyeUJvcmRlckNvbG9yIjoiIzAwZDRmZiIsImxpbmVDb2xvciI6IiM0YTVhNzAiLCJzZWNvbmRhcnlDb2xvciI6IiMxMTE4MjAiLCJ0ZXJ0aWFyeUNvbG9yIjoiIzBhMGUxNCJ9fQ" alt="Architecture diagram" loading="lazy" style="max-width:100%;height:auto">
+    <p class="caption">System architecture — The ACU connects to JETSON, VCU, and DV/AQT via CAN bus, and drives ADC, UART, solenoid driver, and timer peripherals directly on board.</p>
+  </div>
+</section>
 
-      <!-- MCU block -->
-      <rect x="20" y="60" width="70" height="44" rx="3" class="comp-body"/>
-      <text x="55" y="78" text-anchor="middle" class="component-label" fill="#00d4ff">MCU</text>
-      <text x="55" y="91" text-anchor="middle" class="component-value" fill="#607080">GPIO</text>
-      <text x="55" y="101" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#3a6080">10 Hz</text>
+<!-- ───── State Machines ───── -->
+<section id="state-machines">
+  <h2 class="section-title">State Machines</h2>
+  <p class="section-desc">The firmware is driven by four state machines that control different aspects of the vehicle's behavior. The Vehicle state machine manages the high-level operating mode (IDLE, AS_ON, EMERGENCY). The Autonomous state machine handles the mission phases (initialisation, monitoring, finish). The Startup state machine runs a six-phase power-on sequence with timeout checks. The BLE state machine manages Bluetooth communication to extract logged events from EEPROM (emergencies, hardfaults, etc.) for diagnostics.</p>
 
-      <!-- R66 -->
-      <line x1="90" y1="82" x2="120" y2="82" stroke="#2a4060" stroke-width="1.5"/>
-      <rect x="120" y="76" width="24" height="12" rx="2" class="comp-body"/>
-      <text x="132" y="72" text-anchor="middle" class="component-label">R66</text>
-      <text x="132" y="93" text-anchor="middle" class="component-value">220Ω</text>
-
-      <!-- Q12 transistor (NPN symbol) -->
-      <line x1="144" y1="82" x2="162" y2="82" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="162" y1="68" x2="162" y2="100" stroke="#2a5070" stroke-width="2"/>
-      <line x1="162" y1="78" x2="175" y2="68" stroke="#2a5070" stroke-width="1.5"/>
-      <line x1="162" y1="88" x2="175" y2="98" stroke="#2a5070" stroke-width="1.5"/>
-      <polygon points="168,94 175,98 170,100" fill="#2a5070"/>
-      <line x1="175" y1="68" x2="175" y2="52" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="175" y1="98" x2="175" y2="116" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="163" y="62" class="component-label">Q12</text>
-
-      <!-- VCC to Q12 collector via R61, D5 -->
-      <text x="175" y="46" text-anchor="middle" class="vcc-label">+5V</text>
-      <line x1="175" y1="48" x2="175" y2="52" stroke="#ffaa00" stroke-width="1"/>
-      <!-- D5 diode symbol -->
-      <polygon points="175,52 175,62 183,57" fill="#1a3040" stroke="#2a5070" stroke-width="1"/>
-      <line x1="183" y1="52" x2="183" y2="62" stroke="#2a5070" stroke-width="1.5"/>
-      <line x1="183" y1="57" x2="175" y2="57" stroke="#2a4060" stroke-width="1"/>
-      <text x="186" y="57" class="component-label">D5</text>
-
-      <!-- GND from Q12 emitter -->
-      <line x1="175" y1="116" x2="175" y2="126" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="175" y="136" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="169" y1="128" x2="181" y2="128" stroke="#405060" stroke-width="1.5"/>
-      <line x1="172" y1="131" x2="178" y2="131" stroke="#405060" stroke-width="1"/>
-
-      <!-- Wire from Q12 collector to RC network junction -->
-      <line x1="175" y1="62" x2="200" y2="62" stroke="#2a4060" stroke-width="1.5"/>
-
-      <!-- ======== SECTION 2: RC NETWORK ======== -->
-
-      <!-- C28 capacitor -->
-      <line x1="200" y1="62" x2="200" y2="80" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="193" y1="80" x2="207" y2="80" stroke="#2a6080" stroke-width="2"/>
-      <line x1="193" y1="84" x2="207" y2="84" stroke="#2a6080" stroke-width="2"/>
-      <line x1="200" y1="84" x2="200" y2="100" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="200" y1="100" x2="200" y2="110" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="210" y="83" class="component-label">C28</text>
-      <text x="210" y="91" class="component-value">3.3µF</text>
-      <text x="200" y="120" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="194" y1="112" x2="206" y2="112" stroke="#405060" stroke-width="1.5"/>
-      <line x1="197" y1="115" x2="203" y2="115" stroke="#405060" stroke-width="1"/>
-
-      <!-- R64 -->
-      <line x1="200" y1="62" x2="230" y2="62" stroke="#2a4060" stroke-width="1.5"/>
-      <rect x="230" y="56" width="28" height="12" rx="2" class="comp-body"/>
-      <text x="244" y="52" text-anchor="middle" class="component-label">R64</text>
-      <text x="244" y="77" text-anchor="middle" class="component-value">150kΩ</text>
-      <line x1="258" y1="62" x2="290" y2="62" stroke="#2a4060" stroke-width="1.5"/>
-
-      <!-- C29 -->
-      <line x1="290" y1="62" x2="290" y2="78" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="283" y1="78" x2="297" y2="78" stroke="#2a6080" stroke-width="2"/>
-      <line x1="283" y1="82" x2="297" y2="82" stroke="#2a6080" stroke-width="2"/>
-      <line x1="290" y1="82" x2="290" y2="100" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="300" y="81" class="component-label">C29</text>
-      <text x="300" y="89" class="component-value">3.3µF</text>
-      <line x1="290" y1="100" x2="290" y2="110" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="290" y="120" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="284" y1="112" x2="296" y2="112" stroke="#405060" stroke-width="1.5"/>
-      <line x1="287" y1="115" x2="293" y2="115" stroke="#405060" stroke-width="1"/>
-
-      <!-- Junction node at RC output (VINA+) -->
-      <line x1="290" y1="62" x2="340" y2="62" stroke="#2a4060" stroke-width="1.5"/>
-
-      <!-- ======== SECTION 3: IC4 COMPARATOR ======== -->
-
-      <!-- IC4 body -->
-      <rect x="340" y="40" width="80" height="80" rx="4" class="comp-body"/>
-      <text x="380" y="55" text-anchor="middle" class="component-label" fill="#00d4ff">IC4</text>
-      <text x="380" y="66" text-anchor="middle" class="component-value" fill="#405060">DUAL OP-AMP</text>
-
-      <!-- IC4 pins labels -->
-      <text x="345" y="78" class="component-value">VINA+</text>
-      <text x="345" y="90" class="component-value">VINA-</text>
-      <text x="345" y="102" class="component-value">VSS</text>
-      <text x="390" y="78" class="component-value">VOUTA</text>
-      <text x="390" y="90" class="component-value">VDD</text>
-
-      <!-- Input wire to IC4 VINA+ -->
-      <line x1="340" y1="74" x2="290" y2="62" stroke="#2a4060" stroke-width="1"/>
-
-      <!-- Vref divider -->
-      <line x1="340" y1="86" x2="320" y2="86" stroke="#2a4060" stroke-width="1.5"/>
-      <!-- R63 top -->
-      <rect x="305" y="80" width="15" height="8" rx="1" class="comp-body"/>
-      <text x="302" y="78" class="component-value">R63</text>
-      <line x1="305" y1="84" x2="298" y2="84" stroke="#2a4060" stroke-width="1"/>
-      <line x1="298" y1="84" x2="298" y2="76" stroke="#ffaa00" stroke-width="1"/>
-      <text x="295" y="72" text-anchor="middle" class="vcc-label" style="font-size:8px">+5V</text>
-      <!-- R65 bottom -->
-      <line x1="320" y1="86" x2="320" y2="100" stroke="#2a4060" stroke-width="1.5"/>
-      <rect x="313" y="100" width="15" height="8" rx="1" class="comp-body"/>
-      <text x="302" y="107" class="component-value">R65</text>
-      <line x1="313" y1="104" x2="306" y2="104" stroke="#2a4060" stroke-width="1"/>
-      <line x1="306" y1="104" x2="306" y2="114" stroke="#2a4060" stroke-width="1"/>
-      <text x="306" y="122" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="300" y1="116" x2="312" y2="116" stroke="#405060" stroke-width="1.5"/>
-      <line x1="303" y1="119" x2="309" y2="119" stroke="#405060" stroke-width="1"/>
-
-      <!-- IC4 output (VOUTA) -->
-      <line x1="420" y1="74" x2="460" y2="74" stroke="#2a4060" stroke-width="1.5"/>
-
-      <!-- ======== SECTION 4: RELAY DRIVER + K1 ======== -->
-
-      <!-- Q14 transistor (relay driver) -->
-      <line x1="460" y1="60" x2="460" y2="92" stroke="#2a5070" stroke-width="2"/>
-      <line x1="460" y1="70" x2="472" y2="62" stroke="#2a5070" stroke-width="1.5"/>
-      <line x1="460" y1="80" x2="472" y2="88" stroke="#2a5070" stroke-width="1.5"/>
-      <polygon points="466,85 472,88 469,91" fill="#2a5070"/>
-      <line x1="460" y1="74" x2="446" y2="74" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="472" y1="62" x2="472" y2="52" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="472" y1="88" x2="472" y2="102" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="458" y="55" class="component-label">Q14</text>
-
-      <!-- K1 Relay coil -->
-      <rect x="490" y="36" width="70" height="50" rx="3" class="comp-body" id="relay-body"/>
-      <text x="525" y="52" text-anchor="middle" class="component-label" fill="#00d4ff" id="relay-label">K1</text>
-      <text x="525" y="63" text-anchor="middle" class="component-value" id="relay-state-text">RELAY</text>
-      <text x="525" y="73" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:7px;fill:#2a5070" id="relay-contact-text">NC — CLOSED</text>
-
-      <!-- VCC to relay -->
-      <text x="525" y="30" text-anchor="middle" class="vcc-label">VCC</text>
-      <line x1="525" y1="32" x2="525" y2="36" stroke="#ffaa00" stroke-width="1"/>
-
-      <!-- Relay to Q14 collector -->
-      <line x1="490" y1="60" x2="472" y2="60" stroke="#2a4060" stroke-width="1"/>
-      <line x1="472" y1="60" x2="472" y2="52" stroke="#2a4060" stroke-width="1"/>
-
-      <!-- D6 flyback diode -->
-      <line x1="560" y1="36" x2="560" y2="52" stroke="#2a4060" stroke-width="1"/>
-      <polygon points="556,42 560,36 564,42" fill="#1a3040" stroke="#2a5070" stroke-width="1"/>
-      <line x1="556" y1="42" x2="564" y2="42" stroke="#2a5070" stroke-width="1.5"/>
-      <text x="567" y="45" class="component-label">D6</text>
-
-      <!-- Q14 emitter to GND -->
-      <line x1="472" y1="102" x2="472" y2="114" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="472" y="124" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="466" y1="116" x2="478" y2="116" stroke="#405060" stroke-width="1.5"/>
-      <line x1="469" y1="119" x2="475" y2="119" stroke="#405060" stroke-width="1"/>
-
-      <!-- Relay contacts output -->
-      <line x1="560" y1="62" x2="600" y2="62" stroke="#2a4060" stroke-width="1.5"/>
-      <rect x="600" y="50" width="80" height="28" rx="3" class="comp-body" id="circuit-out-box"/>
-      <text x="640" y="62" text-anchor="middle" class="component-label" id="circuit-out-label">SHUTDOWN</text>
-      <text x="640" y="73" text-anchor="middle" class="component-value" id="circuit-out-sub">CIRCUIT — OK</text>
-
-      <!-- ======== SECTION 2B: Lower half — Q13/Q18 second channel ======== -->
-      <text x="30" y="185" class="section-label">① PULSE INPUT CH.2</text>
-      <text x="190" y="185" class="section-label">② RC INTEGRATOR CH.2</text>
-
-      <!-- MCU block 2 -->
-      <rect x="20" y="195" width="70" height="44" rx="3" class="comp-body"/>
-      <text x="55" y="213" text-anchor="middle" class="component-label" fill="#00d4ff">MCU</text>
-      <text x="55" y="224" text-anchor="middle" class="component-value" fill="#607080">GPIO 2A</text>
-      <text x="55" y="234" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#3a6080">10 Hz</text>
-
-      <!-- R111 -->
-      <line x1="90" y1="217" x2="120" y2="217" stroke="#2a4060" stroke-width="1.5"/>
-      <rect x="120" y="211" width="24" height="12" rx="2" class="comp-body"/>
-      <text x="132" y="207" text-anchor="middle" class="component-label">R111</text>
-      <text x="132" y="231" text-anchor="middle" class="component-value">220Ω</text>
-
-      <!-- Q18 + Q13 -->
-      <line x1="144" y1="217" x2="162" y2="217" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="162" y1="203" x2="162" y2="235" stroke="#2a5070" stroke-width="2"/>
-      <line x1="162" y1="213" x2="175" y2="203" stroke="#2a5070" stroke-width="1.5"/>
-      <line x1="162" y1="223" x2="175" y2="233" stroke="#2a5070" stroke-width="1.5"/>
-      <polygon points="168,229 175,233 170,235" fill="#2a5070"/>
-      <line x1="175" y1="203" x2="175" y2="190" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="175" y1="233" x2="175" y2="250" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="163" y="197" class="component-label">Q18/Q13</text>
-
-      <text x="175" y="183" text-anchor="middle" class="vcc-label">+5V</text>
-      <line x1="175" y1="185" x2="175" y2="190" stroke="#ffaa00" stroke-width="1"/>
-
-      <line x1="175" y1="250" x2="175" y2="260" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="175" y="270" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="169" y1="262" x2="181" y2="262" stroke="#405060" stroke-width="1.5"/>
-      <line x1="172" y1="265" x2="178" y2="265" stroke="#405060" stroke-width="1"/>
-
-      <!-- Wire to second RC -->
-      <line x1="175" y1="197" x2="200" y2="197" stroke="#2a4060" stroke-width="1.5"/>
-
-      <!-- C31 -->
-      <line x1="200" y1="197" x2="200" y2="213" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="193" y1="213" x2="207" y2="213" stroke="#2a6080" stroke-width="2"/>
-      <line x1="193" y1="217" x2="207" y2="217" stroke="#2a6080" stroke-width="2"/>
-      <line x1="200" y1="217" x2="200" y2="240" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="210" y="216" class="component-label">C31</text>
-      <text x="210" y="224" class="component-value">3.3µF</text>
-      <text x="200" y="252" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="194" y1="244" x2="206" y2="244" stroke="#405060" stroke-width="1.5"/>
-      <line x1="197" y1="247" x2="203" y2="247" stroke="#405060" stroke-width="1"/>
-
-      <!-- R70 -->
-      <line x1="200" y1="197" x2="230" y2="197" stroke="#2a4060" stroke-width="1.5"/>
-      <rect x="230" y="191" width="28" height="12" rx="2" class="comp-body"/>
-      <text x="244" y="187" text-anchor="middle" class="component-label">R70</text>
-      <text x="244" y="212" text-anchor="middle" class="component-value">150kΩ</text>
-      <line x1="258" y1="197" x2="290" y2="197" stroke="#2a4060" stroke-width="1.5"/>
-
-      <!-- C32 -->
-      <line x1="290" y1="197" x2="290" y2="213" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="283" y1="213" x2="297" y2="213" stroke="#2a6080" stroke-width="2"/>
-      <line x1="283" y1="217" x2="297" y2="217" stroke="#2a6080" stroke-width="2"/>
-      <line x1="290" y1="217" x2="290" y2="240" stroke="#2a4060" stroke-width="1.5"/>
-      <text x="300" y="216" class="component-label">C32</text>
-      <text x="300" y="224" class="component-value">3.3µF</text>
-      <text x="290" y="252" text-anchor="middle" class="gnd-label">GND</text>
-      <line x1="284" y1="244" x2="296" y2="244" stroke="#405060" stroke-width="1.5"/>
-      <line x1="287" y1="247" x2="293" y2="247" stroke="#405060" stroke-width="1"/>
-
-      <!-- Connect second RC to IC4 VINB+ -->
-      <line x1="290" y1="197" x2="340" y2="197" stroke="#2a4060" stroke-width="1.5"/>
-      <line x1="340" y1="197" x2="340" y2="102" stroke="#2a4060" stroke-width="1"/>
-      <line x1="340" y1="102" x2="340" y2="102" stroke="#2a4060" stroke-width="1"/>
-      <text x="342" y="155" class="component-value">VINB+</text>
-
-      <!-- ======== OPTOCOUPLER FEEDBACK ======== -->
-      <text x="30" y="310" class="section-label">⑤ OPTOCOUPLER FEEDBACK</text>
-
-      <rect x="30" y="320" width="80" height="50" rx="3" class="comp-body"/>
-      <text x="70" y="337" text-anchor="middle" class="component-label" fill="#00d4ff">TCMT1103</text>
-      <text x="70" y="349" text-anchor="middle" class="component-value">OPTOCOUPLER</text>
-      <text x="70" y="360" text-anchor="middle" class="component-value">isolation</text>
-
-      <!-- feedback wire from relay -->
-      <line x1="490" y1="80" x2="480" y2="80" stroke="#2a4060" stroke-width="1"/>
-      <line x1="480" y1="80" x2="480" y2="340" stroke="#2a4060" stroke-width="1" stroke-dasharray="4,3"/>
-      <line x1="480" y1="340" x2="200" y2="340" stroke="#2a4060" stroke-width="1" stroke-dasharray="4,3"/>
-      <line x1="200" y1="340" x2="110" y2="340" stroke="#2a4060" stroke-width="1" stroke-dasharray="4,3"/>
-      <text x="300" y="336" text-anchor="middle" class="component-value" fill="#2a5070">R_FEEBACK → MCU</text>
-
-      <!-- R73, R77 -->
-      <rect x="140" y="332" width="20" height="10" rx="1" class="comp-body"/>
-      <text x="150" y="329" text-anchor="middle" class="component-value">R73/R77</text>
-      <line x1="160" y1="337" x2="200" y2="337" stroke="#2a4060" stroke-width="1"/>
-
-      <!-- MCU feedback input -->
-      <rect x="200" y="320" width="60" height="34" rx="3" class="comp-body"/>
-      <text x="230" y="334" text-anchor="middle" class="component-label" fill="#00d4ff">MCU</text>
-      <text x="230" y="345" text-anchor="middle" class="component-value">FEEDBACK</text>
-      <text x="230" y="354" text-anchor="middle" class="component-value">INPUT</text>
-
-      <!-- ======== ACTIVE WIRE OVERLAYS (animated) ======== -->
-      <!-- GPIO pulse wire (ch1) -->
-      <line id="w-gpio1" x1="90" y1="82" x2="144" y2="82" class="wire wire-sig"/>
-      <!-- RC charge wire -->
-      <line id="w-rc1" x1="175" y1="62" x2="290" y2="62" class="wire wire-sig"/>
-      <!-- IC4 input wire -->
-      <line id="w-ic4in" x1="290" y1="62" x2="340" y2="74" class="wire wire-sig"/>
-      <!-- IC4 output wire -->
-      <line id="w-ic4out" x1="420" y1="74" x2="460" y2="74" class="wire wire-sig"/>
-      <!-- Relay coil wire -->
-      <line id="w-relay-coil" x1="472" y1="52" x2="490" y2="60" class="wire wire-sig"/>
-      <!-- Trip wires (shown when relay opens) -->
-      <line id="w-trip" x1="560" y1="62" x2="600" y2="62" class="wire wire-trip"/>
-
-      <!-- ======== CLICKABLE PROBE NODES ======== -->
-
-      <!-- Node: MCU GPIO output -->
-      <g class="node-hit" onclick="selectNode('gpio')" id="node-gpio">
-        <circle cx="90" cy="82" r="7" fill="#0d1820" stroke="#378ADD" stroke-width="1.5" class="node-circle"/>
-        <circle cx="90" cy="82" r="3" fill="#378ADD" id="nd-gpio"/>
-        <text x="90" y="72" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#378ADD">GPIO</text>
-      </g>
-
-      <!-- Node: Cap junction (VINA+) -->
-      <g class="node-hit" onclick="selectNode('cap')" id="node-cap">
-        <circle cx="260" cy="62" r="7" fill="#0d1820" stroke="#1D9E75" stroke-width="1.5" class="node-circle"/>
-        <circle cx="260" cy="62" r="3" fill="#1D9E75" id="nd-cap"/>
-        <text x="260" y="52" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#1D9E75">CAP</text>
-      </g>
-
-      <!-- Node: Vref -->
-      <g class="node-hit" onclick="selectNode('vref')" id="node-vref">
-        <circle cx="320" cy="86" r="7" fill="#0d1820" stroke="#BA7517" stroke-width="1.5" class="node-circle"/>
-        <circle cx="320" cy="86" r="3" fill="#BA7517" id="nd-vref"/>
-        <text x="320" y="76" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#BA7517">VREF</text>
-      </g>
-
-      <!-- Node: IC4 output (comparator out) -->
-      <g class="node-hit" onclick="selectNode('cmp')" id="node-cmp">
-        <circle cx="440" cy="74" r="7" fill="#0d1820" stroke="#EF9F27" stroke-width="1.5" class="node-circle"/>
-        <circle cx="440" cy="74" r="3" fill="#EF9F27" id="nd-cmp"/>
-        <text x="440" y="64" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#EF9F27">CMP</text>
-      </g>
-
-      <!-- Node: Relay coil voltage -->
-      <g class="node-hit" onclick="selectNode('relay')" id="node-relay">
-        <circle cx="525" cy="86" r="7" fill="#0d1820" stroke="#D85A30" stroke-width="1.5" class="node-circle"/>
-        <circle cx="525" cy="86" r="3" fill="#D85A30" id="nd-relay"/>
-        <text x="525" y="96" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#D85A30">COIL</text>
-      </g>
-
-      <!-- Node: Circuit output -->
-      <g class="node-hit" onclick="selectNode('out')" id="node-out">
-        <circle cx="640" cy="86" r="7" fill="#0d1820" stroke="#ff4466" stroke-width="1.5" class="node-circle"/>
-        <circle cx="640" cy="86" r="3" fill="#ff4466" id="nd-out"/>
-        <text x="640" y="96" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#ff4466">OUT</text>
-      </g>
-
-      <!-- Node: Cap Ch2 -->
-      <g class="node-hit" onclick="selectNode('cap2')" id="node-cap2">
-        <circle cx="260" cy="197" r="7" fill="#0d1820" stroke="#5DCAA5" stroke-width="1.5" class="node-circle"/>
-        <circle cx="260" cy="197" r="3" fill="#5DCAA5" id="nd-cap2"/>
-        <text x="260" y="187" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#5DCAA5">CAP2</text>
-      </g>
-
-      <!-- Probe tooltip -->
-      <g id="probe-tip" opacity="0">
-        <rect id="probe-bg" x="0" y="0" width="70" height="22" rx="3" fill="#0a0e14" stroke="#00d4ff" stroke-width="1"/>
-        <text id="probe-text" x="35" y="15" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:10px;fill:#00d4ff">0.00 V</text>
-      </g>
-
-    </svg>
+  <div class="tabs" id="sm-tabs">
+    <button class="tab-btn active" data-tab="sm-vehicle">Vehicle</button>
+    <button class="tab-btn" data-tab="sm-autonomous">Autonomous</button>
+    <button class="tab-btn" data-tab="sm-startup">Startup</button>
+    <button class="tab-btn" data-tab="sm-ble">BLE</button>
   </div>
 
-  <!-- Side panel -->
-  <div class="side-panel">
-    <div class="controls-area">
-      <div class="ctrl-title">simulation controls</div>
-      <div class="ctrl-row">
-        <label>MCU freq</label>
-        <input type="range" id="sl-freq" min="1" max="20" step="0.5" value="10">
-        <span class="val" id="lf">10.0 Hz</span>
-      </div>
-      <div class="ctrl-row">
-        <label>τ (RC)</label>
-        <input type="range" id="sl-tau" min="0.1" max="2" step="0.05" value="0.5">
-        <span class="val" id="lt">0.50 s</span>
-      </div>
-      <div class="ctrl-row">
-        <label>V_ref</label>
-        <input type="range" id="sl-vref" min="0.5" max="4.5" step="0.05" value="2.5">
-        <span class="val" id="lv">2.50 V</span>
-      </div>
-      <div class="ctrl-row">
-        <label>V_supply</label>
-        <input type="range" id="sl-vcc" min="3" max="5" step="0.1" value="5">
-        <span class="val" id="lvc">5.0 V</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-freeze" id="btn-freeze" onclick="freezeMCU()">⏸ Freeze MCU</button>
-        <button class="btn-resume" id="btn-resume" onclick="resumeMCU()" disabled>▶ Resume</button>
-        <button class="btn-reset" onclick="resetSim()">↺</button>
-      </div>
-    </div>
-
-    <div class="plot-area">
-      <div class="plot-title">
-        <span>voltage probes</span>
-      </div>
-      <div id="probe-hint" class="hint">← Click any node on the schematic to probe its voltage</div>
-      <div class="node-plots" id="node-plots"></div>
+  <div class="tab-content active" id="sm-vehicle">
+    <div class="diagram-box">
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoic3RhdGVEaWFncmFtLXYyXG4gICAgWypdIC0tPiBJRExFOiBXRFQgRW5hYmxlXG4gICAgSURMRSAtLT4gQVNfT046IEFTTVM9MSAmIElHTj0wXG4gICAgQVNfT04gLS0-IEVNRVJHRU5DWTogRmF1bHRcbiAgICBFTUVSR0VOQ1kgLS0-IElETEU6IEFTTVM9MCAmIHJwbTwxMFxuICAgIHN0YXRlIEVNRVJHRU5DWSB7XG4gICAgICAgIEhhbmRsZV9FbWVyZ2VuY3lcbiAgICB9XG4gICAgc3RhdGUgQVNfT04ge1xuICAgICAgICBIYW5kbGVfYXV0b25vbW91c19zdGF0ZVxuICAgIH0iLCJtZXJtYWlkIjp7InRoZW1lIjoiZGFyayJ9LCJ0aGVtZVZhcmlhYmxlcyI6eyJwcmltYXJ5Q29sb3IiOiIjMWEyNTMwIiwicHJpbWFyeVRleHRDb2xvciI6IiNiM2M3ZTUiLCJwcmltYXJ5Qm9yZGVyQ29sb3IiOiIjMDBkNGZmIiwibGluZUNvbG9yIjoiIzRhNWE3MCIsInNlY29uZGFyeUNvbG9yIjoiIzExMTgyMCIsInRlcnRpYXJ5Q29sb3IiOiIjMGEwZTE0In19" alt="Vehicle state machine diagram" loading="lazy" style="max-width:100%;height:auto">
+      <p class="caption">Start → IDLE (WDT enabled) → AS_ON (when ASMS=1 and IGN=0) → EMERGENCY (on fault) → IDLE (when ASMS=0 and rpm &lt; 10). AS_ON handles autonomous mission state; EMERGENCY runs the fault handler (disable WDT, clear ignition, open solenoids).</p>
     </div>
   </div>
+
+  <div class="tab-content" id="sm-autonomous">
+    <div class="diagram-box">
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoic3RhdGVEaWFncmFtLXYyXG4gICAgT0ZGIC0tPiBJbml0aWFsX1NlcXVlbmNlOiBBU19PTiBlbnRyeVxuICAgIEluaXRpYWxfU2VxdWVuY2UgLS0-IE1vbml0b3JfU2VxdWVuY2U6IFNlcXVlbmNlIE9LXG4gICAgTW9uaXRvcl9TZXF1ZW5jZSAtLT4gRmluaXNoOiBBU01TPTAgJiBycG08MTBcbiAgICBGaW5pc2ggLS0-IElETEU6IFZlaGljbGVfe3JhcnJ9X0lETEVcbiAgICBJbml0aWFsX1NlcXVlbmNlIC0tPiBBU19FbWVyZ2VuY3k6IFRpbWVvdXQgLyBmYXVsdFxuICAgIE1vbml0b3JfU2VxdWVuY2UgLS0-IEFTX0VtZXJnZW5jeTogTWlzc2lvbiBtaXNtYXRjaFxuICAgIEFTX0VtZXJnZW5jeSAtLT4gRU1FUkdFTkNZIiwibWVybWFpZCI6eyJ0aGVtZSI6ImRhcmsifSwidGhlbWVWYXJpYWJsZXMiOnsicHJpbWFyeUNvbG9yIjoiIzFhMjUzMCIsInByaW1hcnlUZXh0Q29sb3IiOiIjYjNjN2U1IiwicHJpbWFyeUJvcmRlckNvbG9yIjoiIzAwZDRmZiIsImxpbmVDb2xvciI6IiM0YTVhNzAiLCJzZWNvbmRhcnlDb2xvciI6IiMxMTE4MjAiLCJ0ZXJ0aWFyeUNvbG9yIjoiIzBhMGUxNCJ9fQ" alt="Autonomous system state machine" loading="lazy" style="max-width:100%;height:auto">
+      <p class="caption">OFF → Initial_Sequence (pressure, SDC, correlation checks) → Monitor_Sequence (mission monitoring) → Finish (when ASMS=0 and rpm &lt; 10) → IDLE. Timeout or sensor faults trigger AS_Emergency → EMERGENCY.</p>
+    </div>
+  </div>
+
+  <div class="tab-content" id="sm-startup">
+    <div class="diagram-box">
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgV1tcIldhdGNoZG9nX2NoZWNrIFNEQz0xIDUwMG1zXCJdIC0tPiBQW1wiUHJlc3N1cmVfY2hlY2sgNi0xMGJhciAyMDAwbXNcIl1cbiAgICBQIC0tPiBIW1wiSFZfYWN0aXZhdGlvbiBJR05fe3JhcnJ9T04gNTAwMG1zXCJdXG4gICAgSCAtLT4gQ1tcIkNvcnJlbGF0aW9uX2NoZWNrIEh5ZD4xMHhQbmV1IDIwMDBtc1wiXVxuICAgIEMgLS0-IE0xW1wiTUIxX0NoZWNrIFMxPTEgUzI9MCAyMDAwbXNcIl1cbiAgICBNMSAtLT4gTTJbXCJNQjJfQ2hlY2sgUzE9MCBTMj0xIDIwMDBtc1wiXVxuICAgIE0yIC0tPiBSRUFEWVtcIlJFQURZXCJdXG4gICAgVyAtLT58dGltZW91dHwgRVJSW1wiRXJyb3Jfc3RhdGVcIl1cbiAgICBQIC0tPnx0aW1lb3V0fCBFUlJcbiAgICBIIC0tPnx0aW1lb3V0fCBFUlJcbiAgICBDIC0tPnx0aW1lb3V0fCBFUlJcbiAgICBNMSAtLT58dGltZW91dHwgRVJSXG4gICAgTTIgLS0-fHRpbWVvdXR8IEVSUlxuICAgIEVSUiAtLT4gRU1FUkdFTkNZIiwibWVybWFpZCI6eyJ0aGVtZSI6ImRhcmsifSwidGhlbWVWYXJpYWJsZXMiOnsicHJpbWFyeUNvbG9yIjoiIzFhMjUzMCIsInByaW1hcnlUZXh0Q29sb3IiOiIjYjNjN2U1IiwicHJpbWFyeUJvcmRlckNvbG9yIjoiIzAwZDRmZiIsImxpbmVDb2xvciI6IiM0YTVhNzAiLCJzZWNvbmRhcnlDb2xvciI6IiMxMTE4MjAiLCJ0ZXJ0aWFyeUNvbG9yIjoiIzBhMGUxNCJ9fQ" alt="Startup sequence flowchart" loading="lazy" style="max-width:100%;height:auto">
+      <p class="caption">Six-phase startup executed in sequence: Watchdog check (SDC=1, 500ms) → Pressure check (6–10 bar, 2000ms) → HV activation (IGN=ON, 5000ms) → Correlation (Hyd &gt; 10×Pneu, 2000ms) → MB1 check (S1=1, S2=0, 2000ms) → MB2 check (S1=0, S2=1, 2000ms) → READY. Any timeout jumps to Error_state → EMERGENCY.</p>
+    </div>
+  </div>
+
+  <div class="tab-content" id="sm-ble">
+    <div class="diagram-box">
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoic3RhdGVEaWFncmFtLXYyXG4gICAgQkxFX0lETEUgLS0-IEVOVEVSX0NNRDogU2VuZCAkJCRcbiAgICBFTlRFUl9DTUQgLS0-IENPTk5FQ1Q6IFdhaXQgQ01EPiAvIENvbm5lY3RcbiAgICBDT05ORUNUIC0tPiBSRUFEX0NVUlJFTlRfVElNRTogV2FpdCBDT05ORUNURUQgLyBSZWFkIENUU1xuICAgIFJFQURfQ1VSUkVOVF9USU1FIC0tPiBQUk9DRVNTX0RBVEU6IFBhcnNlIENIUiAvIFNldCBSVENcbiAgICBQUk9DRVNTX0RBVEUgLS0-IEVYSVRfQ01EOiBEaXNjb25uZWN0IC8gRXhpdCBjbWRcbiAgICBFWElUX0NNRCAtLT4gQlJJREdFXG4gICAgRU5URVJfQ01EIC0tPiBFWElUX0NNRDogdGltZW91dCAxc1xuICAgIENPTk5FQ1QgLS0-IEVYSVRfQ01EOiB0aW1lb3V0IDhzXG4gICAgUkVBRF9DVVJSRU5UX1RJTUUgLS0-IEVYSVRfQ01EOiB0aW1lb3V0IDNzXG4gICAgRVhJVF9DTUQgLS0-IEJSSURHRTogRVJSIC8gRElTQ09OIiwibWVybWFpZCI6eyJ0aGVtZSI6ImRhcmsifSwidGhlbWVWYXJpYWJsZXMiOnsicHJpbWFyeUNvbG9yIjoiIzFhMjUzMCIsInByaW1hcnlUZXh0Q29sb3IiOiIjYjNjN2U1IiwicHJpbWFyeUJvcmRlckNvbG9yIjoiIzAwZDRmZiIsImxpbmVDb2xvciI6IiM0YTVhNzAiLCJzZWNvbmRhcnlDb2xvciI6IiMxMTE4MjAiLCJ0ZXJ0aWFyeUNvbG9yIjoiIzBhMGUxNCJ9fQ" alt="BLE state machine diagram" loading="lazy" style="max-width:100%;height:auto">
+      <p class="caption">BLE_IDLE → ENTER_CMD (send command, 1s timeout) → CONNECT (wait for connection, 8s timeout) → READ_EEPROM_DATA → PROCESS_EVENT (parse event type, timestamp, counter) → EXIT_CMD → BRIDGE. Extracts emergency and hardfault events logged in EEPROM for diagnostics. Transitions to EXIT_CMD on error or disconnect.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───── Main Loop ───── -->
+<section id="main-loop">
+  <h2 class="section-title">Main Loop — <code>app()</code></h2>
+  <p class="section-desc">The main loop runs continuously from <code>main.c</code>'s <code>while(1)</code>. Each iteration executes a fixed sequence of operations in approximately 1 ms. The order is: read all peripheral inputs → update the active state machine → service the watchdog → update the LED indicator → control the ASSI → actuate peripherals → transmit CAN messages → pop from the CAN buffer → decode the received CAN payload.</p>
+  <div class="diagram-box">
+    <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IExSXG4gICAgQVtcIlBlcmlwaGVyYWxfYXF1aXNpdGlvblwiXSAtLT4gQltcIkhhbmRsZV9zdGF0ZVwiXVxuICAgIEIgLS0-IENbXCJ0b2dnbGVfd2R0XCJdXG4gICAgQyAtLT4gRFtcIkxFRF9pbmRpY2F0b3JcIl1cbiAgICBEIC0tPiBFW1wiQVNTSV9jb250cm9sXCJdXG4gICAgRSAtLT4gRltcIlBlcmlwaGVyYWxfYWN0dWF0aW9uXCJdXG4gICAgRiAtLT4gR1tcImhhbmRsZV9jYW5fdHhcIl1cbiAgICBHIC0tPiBIW1wiY2FuX2J1ZmZlcl9wb3BcIl1cbiAgICBIIC0tPiBJW1wiZGJjX2RlY29kZVwiXSIsIm1lcm1haWQiOnsidGhlbWUiOiJkYXJrIn0sInRoZW1lVmFyaWFibGVzIjp7InByaW1hcnlDb2xvciI6IiMxYTI1MzAiLCJwcmltYXJ5VGV4dENvbG9yIjoiI2IzYzdlNSIsInByaW1hcnlCb3JkZXJDb2xvciI6IiMwMGQ0ZmYiLCJsaW5lQ29sb3IiOiIjNGE1YTcwIiwic2Vjb25kYXJ5Q29sb3IiOiIjMTExODIwIiwidGVydGlhcnlDb2xvciI6IiMwYTBlMTQifX0" alt="Main loop flowchart" loading="lazy" style="max-width:100%;height:auto">
+    <p class="caption">Peripheral_aquisition → Handle_state → toggle_wdt → LED_indicator → ASSI_control → Peripheral_actuation → handle_can_tx → can_buffer_pop → dbc_decode. This sequence repeats every tick.</p>
+  </div>
+</section>
+
+<!-- ───── Module Flowcharts ───── -->
+<section id="modules">
+  <h2 class="section-title">Module Flowcharts</h2>
+  <p class="section-desc">Detailed flowcharts for key firmware modules. Each module handles a specific subsystem: the startup initialisation sequence, emergency handling, peripheral input acquisition, BLE event extraction, CAN buffer management, pressure filtering, and EEPROM data logging.</p>
+
+  <div class="module-grid">
+    <div class="module-card">
+      <h3>initial_sequence</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgU1RBUlQoW1wiU3RhcnRcIl0pIC0tPiBXW1wiV2F0Y2hkb2dfY2hlY2tcIl1cbiAgICBXIC0tPiBTREN7XCJTREMgPT0gMT9cIn1cbiAgICBTREMgLS0-fE58IEVSUjFbXCJFcnJvcl9zdGF0ZSAodGltZW91dCA1MDBtcylcIl1cbiAgICBTREMgLS0-fFl8IEJQe1wiNiA8IEJQIDwgMTA_XCJ9XG4gICAgQlAgLS0-fE58IEVSUjJbXCJFcnJvcl9zdGF0ZSAodGltZW91dCAycylcIl1cbiAgICBCUCAtLT58WXwgQ09SUntcIkh5ZCA-IDEweCBQbmV1P1wifVxuICAgIENPUlIgLS0-fE58IEVSUjNbXCJFcnJvcl9zdGF0ZVwiXVxuICAgIENPUlIgLS0-fFl8IE9LKFtcIlNlcXVlbmNlIE9LXCJdKSIsIm1lcm1haWQiOnsidGhlbWUiOiJkYXJrIn0sInRoZW1lVmFyaWFibGVzIjp7InByaW1hcnlDb2xvciI6IiMxYTI1MzAiLCJwcmltYXJ5VGV4dENvbG9yIjoiI2IzYzdlNSIsInByaW1hcnlCb3JkZXJDb2xvciI6IiMwMGQ0ZmYiLCJsaW5lQ29sb3IiOiIjNGE1YTcwIiwic2Vjb25kYXJ5Q29sb3IiOiIjMTExODIwIiwidGVydGlhcnlDb2xvciI6IiMwYTBlMTQifX0" alt="Initial sequence flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:320px;">
+      <p class="caption">SDC check (500ms timeout) → pressure 6–10 bar (2s timeout) → correlation Hyd &gt; 10×Pneu (2s timeout) → OK.</p>
+    </div>
+    <div class="module-card">
+      <h3>Handle_Emergency</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgQVtcIkRpc2FibGUgV0RUXCJdIC0tPiBCW1wiQ2xlYXIgSWduaXRpb25cIl1cbiAgICBCIC0tPiBDW1wiT3BlbiBTb2xlbm9pZHNcIl0iLCJtZXJtYWlkIjp7InRoZW1lIjoiZGFyayJ9LCJ0aGVtZVZhcmlhYmxlcyI6eyJwcmltYXJ5Q29sb3IiOiIjMWEyNTMwIiwicHJpbWFyeVRleHRDb2xvciI6IiNiM2M3ZTUiLCJwcmltYXJ5Qm9yZGVyQ29sb3IiOiIjMDBkNGZmIiwibGluZUNvbG9yIjoiIzRhNWE3MCIsInNlY29uZGFyeUNvbG9yIjoiIzExMTgyMCIsInRlcnRpYXJ5Q29sb3IiOiIjMGEwZTE0In19" alt="Emergency handler flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:280px;">
+      <p class="caption">Disable the watchdog → clear ignition signal → open solenoids (release brake).</p>
+    </div>
+    <div class="module-card">
+      <h3>Peripheral_aquisition</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgQVtcIlJlYWQgQVNNU1wiXSAtLT4gQltcIlJlYWQgU0RDXCJdXG4gICAgQiAtLT4gQ1tcIlJlYWQgSUdOXCJdXG4gICAgQyAtLT4gRFtcIlJlYWQgQVNTSVwiXSIsIm1lcm1haWQiOnsidGhlbWUiOiJkYXJrIn0sInRoZW1lVmFyaWFibGVzIjp7InByaW1hcnlDb2xvciI6IiMxYTI1MzAiLCJwcmltYXJ5VGV4dENvbG9yIjoiI2IzYzdlNSIsInByaW1hcnlCb3JkZXJDb2xvciI6IiMwMGQ0ZmYiLCJsaW5lQ29sb3IiOiIjNGE1YTcwIiwic2Vjb25kYXJ5Q29sb3IiOiIjMTExODIwIiwidGVydGlhcnlDb2xvciI6IiMwYTBlMTQifX0" alt="Peripheral acquisition flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:280px;">
+      <p class="caption">Read ASMS (autonomous state) → read SDC (shutdown circuit) → read IGN (ignition) → read ASSI (visual LED state).</p>
+    </div>
+    <div class="module-card">
+      <h3>BLE Handler</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgUyhbXCJJZGxlXCJdKSAtLT4gRU5URVJ7XCJFTlRFUl9DTUQ_XCJ9XG4gICAgRU5URVIgLS0-fE58IFNcbiAgICBFTlRFUiAtLT58WXwgQ01Ee1wiQ01EID4gP1wifVxuICAgIENNRCAtLT58TnwgRU5URVJcbiAgICBDTUQgLS0-fFl8IENPTk5bXCJDb25uZWN0XCJdXG4gICAgQ09OTiAtLT4gT0t7XCJDT05ORUNURUQ_XCJ9XG4gICAgT0sgLS0-fE58IENPTk5cbiAgICBPSyAtLT58WXwgQ1RTW1wiUmVhZCBDVFNcIl1cbiAgICBDVFMgLS0-IENIUntcIkNIUj9cIn1cbiAgICBDSFIgLS0-fE58IENUU1xuICAgIENIUiAtLT58WXwgUlRDW1wiU2V0IFJUQ1wiXVxuICAgIFJUQyAtLT4gRVhJVFtcIkVYSVRfQ01EXCJdXG4gICAgRVhJVCAtLT4gQlJJREdFW1wiQlJJREdFXCJdIiwibWVybWFpZCI6eyJ0aGVtZSI6ImRhcmsifSwidGhlbWVWYXJpYWJsZXMiOnsicHJpbWFyeUNvbG9yIjoiIzFhMjUzMCIsInByaW1hcnlUZXh0Q29sb3IiOiIjYjNjN2U1IiwicHJpbWFyeUJvcmRlckNvbG9yIjoiIzAwZDRmZiIsImxpbmVDb2xvciI6IiM0YTVhNzAiLCJzZWNvbmRhcnlDb2xvciI6IiMxMTE4MjAiLCJ0ZXJ0aWFyeUNvbG9yIjoiIzBhMGUxNCJ9fQ" alt="BLE handler flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:320px;">
+      <p class="caption">Idle → wait for command → connect to device → read event data from EEPROM → parse event type and timestamp → EXIT_CMD → BRIDGE (pass data to external logger).</p>
+    </div>
+    <div class="module-card">
+      <h3>can_buffer_pop</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgUyhbXCJFbnRlclwiXSkgLS0-IEN7XCJjb3VudGVyID09IDA_XCJ9XG4gICAgQyAtLT58WXwgUkVUW1wicmV0dXJuIE5VTExcIl1cbiAgICBDIC0tPnxOfCBERUN7XCJ0eCBvciByeD9cIn1cbiAgICBERUMgLS0-fFRYfCBUWEJbXCJDQU5fQWRkVHhNZXNzYWdlXCJdXG4gICAgREVDIC0tPnxSWHwgUlhCW1wibWVtY3B5IHRvIGJ1ZmZlclwiXSIsIm1lcm1haWQiOnsidGhlbWUiOiJkYXJrIn0sInRoZW1lVmFyaWFibGVzIjp7InByaW1hcnlDb2xvciI6IiMxYTI1MzAiLCJwcmltYXJ5VGV4dENvbG9yIjoiI2IzYzdlNSIsInByaW1hcnlCb3JkZXJDb2xvciI6IiMwMGQ0ZmYiLCJsaW5lQ29sb3IiOiIjNGE1YTcwIiwic2Vjb25kYXJ5Q29sb3IiOiIjMTExODIwIiwidGVydGlhcnlDb2xvciI6IiMwYTBlMTQifX0" alt="CAN buffer pop flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:280px;">
+      <p class="caption">If counter is 0, return NULL. Otherwise check direction: TX → call CAN_AddTxMessage, RX → memcpy to buffer.</p>
+    </div>
+    <div class="module-card">
+      <h3>EMA Filter</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgUyhbXCJFbnRlclwiXSkgLS0-IElOSVR7XCJpbml0aWFsaXplZD9cIn1cbiAgICBJTklUIC0tPnxOfCBTRVRbXCJ5ID0gaW5wdXRcIl1cbiAgICBJTklUIC0tPnxZfCBDQUxDW1wieSA9IGFscGhhKnggKyAoMS1hbHBoYSkqeV9wcmV2XCJdXG4gICAgU0VUIC0tPiBPVVQoW1wicmV0dXJuIHlcIl0pXG4gICAgQ0FMQyAtLT4gT1VUIiwibWVybWFpZCI6eyJ0aGVtZSI6ImRhcmsifSwidGhlbWVWYXJpYWJsZXMiOnsicHJpbWFyeUNvbG9yIjoiIzFhMjUzMCIsInByaW1hcnlUZXh0Q29sb3IiOiIjYjNjN2U1IiwicHJpbWFyeUJvcmRlckNvbG9yIjoiIzAwZDRmZiIsImxpbmVDb2xvciI6IiM0YTVhNzAiLCJzZWNvbmRhcnlDb2xvciI6IiMxMTE4MjAiLCJ0ZXJ0aWFyeUNvbG9yIjoiIzBhMGUxNCJ9fQ" alt="EMA filter flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:280px;">
+      <p class="caption">Exponential moving average filter. If uninitialised, output = input. Otherwise y = alpha · x + (1 − alpha) · y_prev.</p>
+    </div>
+    <div class="module-card">
+      <h3>EEPROM Logger</h3>
+      <img src="https://mermaid.ink/svg/eyJjb2RlIjoiZmxvd2NoYXJ0IFREXG4gICAgUyhbXCJFbnRlclwiXSkgLS0-IEhEUltcIlJlYWQgaGVhZGVyXCJdXG4gICAgSERSIC0tPiBNQUdJQ3tcIm1hZ2ljID09IDB4REVBREJFRUY_XCJ9XG4gICAgTUFHSUMgLS0-fE58IElOSVRbXCJJbml0aWFsaXplIEVFUFJPTVwiXVxuICAgIElOSVQgLS0-IEhEUlxuICAgIE1BR0lDIC0tPnxZfCBXUklURVtcIldyaXRlIGRhdGEgQCB0YWlsXCJdXG4gICAgV1JJVEUgLS0-IEFEVltcIkFkdmFuY2UgdGFpbFwiXVxuICAgIEFEViAtLT4gQ0hLe1wiY291bnQgPT0gTUFYP1wifVxuICAgIENISyAtLT58TnwgSU5DW1wiY291bnQrK1wiXVxuICAgIENISyAtLT58WXwgSEVBRFtcImhlYWQrK1wiXVxuICAgIEhFQUQgLS0-IElOQ1xuICAgIElOQyAtLT4gRChbXCJEb25lXCJdKSIsIm1lcm1haWQiOnsidGhlbWUiOiJkYXJrIn0sInRoZW1lVmFyaWFibGVzIjp7InByaW1hcnlDb2xvciI6IiMxYTI1MzAiLCJwcmltYXJ5VGV4dENvbG9yIjoiI2IzYzdlNSIsInByaW1hcnlCb3JkZXJDb2xvciI6IiMwMGQ0ZmYiLCJsaW5lQ29sb3IiOiIjNGE1YTcwIiwic2Vjb25kYXJ5Q29sb3IiOiIjMTExODIwIiwidGVydGlhcnlDb2xvciI6IiMwYTBlMTQifX0" alt="EEPROM logger flowchart" loading="lazy" style="max-width:100%;height:auto;max-width:320px;">
+      <p class="caption">Read header → validate magic (0xDEADBEEF) → if invalid, initialise EEPROM; if valid, write data at current tail position → advance tail → if count reaches MAX, increment head → done.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───── Legend ───── -->
+<section id="legend">
+  <h2 class="section-title">Legend</h2>
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span> Process / State box</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span> Success / Yes path</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span> Error / No / Timeout path</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--orange)"></span> Decision diamond</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span> External ECU</span>
+  </div>
+</section>
+
 </div>
 
 <script>
-const HIST = 200, DT = 0.03;
-let t=0, capV=0, cap2V=0, lastG1=0, lastG2=0, mcuAlive=true;
-
-const nodeConfig = {
-  gpio:  { label:'GPIO (MCU out)',   desc:'MCU pulse output — 0V/5V square wave', color:'#378ADD', ymin:-0.2, ymax:5.5, unit:'V' },
-  cap:   { label:'CAP1 junction',    desc:'Voltage at RC integrator ch1 output (→ IC4 VINA+)', color:'#1D9E75', ymin:-0.2, ymax:5.5, unit:'V' },
-  cap2:  { label:'CAP2 junction',    desc:'Voltage at RC integrator ch2 output (→ IC4 VINB+)', color:'#5DCAA5', ymin:-0.2, ymax:5.5, unit:'V' },
-  vref:  { label:'V_ref',            desc:'Comparator threshold set by R63/R65 divider', color:'#BA7517', ymin:-0.2, ymax:5.5, unit:'V' },
-  cmp:   { label:'Comparator out',   desc:'IC4 output HIGH when CAP > VREF — drives relay', color:'#EF9F27', ymin:-0.2, ymax:5.5, unit:'V' },
-  relay: { label:'Relay coil',       desc:'Coil voltage — HIGH = energised = NC contacts closed', color:'#D85A30', ymin:-0.2, ymax:5.5, unit:'V' },
-  out:   { label:'Circuit output',   desc:'Downstream circuit state — 5V = alive, 0V = shutdown', color:'#ff4466', ymin:-0.2, ymax:5.5, unit:'V' }
-};
-
-const histories = {};
-const charts = {};
-const activeNodes = new Set();
-
-Object.keys(nodeConfig).forEach(k => { histories[k] = new Array(HIST).fill(0); });
-
-function getParams() {
-  return {
-    freq: parseFloat(document.getElementById('sl-freq').value),
-    tau:  parseFloat(document.getElementById('sl-tau').value),
-    vref: parseFloat(document.getElementById('sl-vref').value),
-    vcc:  parseFloat(document.getElementById('sl-vcc').value)
-  };
-}
-
-function selectNode(key) {
-  if (activeNodes.has(key)) {
-    activeNodes.delete(key);
-    removeChart(key);
-  } else {
-    activeNodes.add(key);
-    addChart(key);
-  }
-  document.getElementById('probe-hint').style.display = activeNodes.size > 0 ? 'none' : 'block';
-  highlightNode(key, activeNodes.has(key));
-}
-
-function highlightNode(key, on) {
-  const el = document.getElementById('node-' + key);
-  if (!el) return;
-  const circle = el.querySelector('.node-circle');
-  if (circle) {
-    circle.style.strokeWidth = on ? '2.5' : '1.5';
-    circle.style.filter = on ? 'url(#glow)' : 'none';
-  }
-}
-
-function addChart(key) {
-  const cfg = nodeConfig[key];
-  const container = document.getElementById('node-plots');
-  const div = document.createElement('div');
-  div.className = 'node-plot-card active';
-  div.id = 'plot-card-' + key;
-  div.innerHTML = `
-    <div class="node-plot-header">
-      <span class="node-plot-name" style="color:${cfg.color}">${cfg.label}</span>
-      <span class="node-plot-val" id="pval-${key}">— V</span>
-    </div>
-    <div class="node-plot-desc">${cfg.desc}</div>
-    <div class="ch-wrap"><canvas id="pchart-${key}" role="img" aria-label="Voltage plot for ${cfg.label}"></canvas></div>
-  `;
-  container.appendChild(div);
-
-  charts[key] = new Chart(document.getElementById('pchart-' + key), {
-    type: 'line',
-    data: {
-      labels: new Array(HIST).fill(''),
-      datasets: [
-        { data: [...histories[key]], borderColor: cfg.color, borderWidth: 1.5, pointRadius: 0, tension: 0, fill: true,
-          backgroundColor: cfg.color + '15' }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: {
-        x: { display: false },
-        y: { min: cfg.ymin, max: cfg.ymax, display: true,
-             ticks: { font: { size: 9, family: 'JetBrains Mono' }, color: '#607080', maxTicksLimit: 4,
-                      callback: v => v.toFixed(1) + 'V' },
-             grid: { color: 'rgba(42,64,96,0.4)' }, border: { display: false } }
-      }
-    }
+(function(){
+  var tabs = document.getElementById('sm-tabs');
+  if (!tabs) return;
+  var btns = tabs.querySelectorAll('.tab-btn');
+  btns.forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      var target = document.getElementById(this.dataset.tab);
+      if (!target) return;
+      btns.forEach(function(b){ b.classList.remove('active'); });
+      this.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(function(tc){ tc.classList.remove('active'); });
+      target.classList.add('active');
+    });
   });
-}
-
-function removeChart(key) {
-  const card = document.getElementById('plot-card-' + key);
-  if (card) card.remove();
-  if (charts[key]) { charts[key].destroy(); delete charts[key]; }
-}
-
-function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
-
-function tick() {
-  const q = getParams();
-  t += DT;
-
-  const gpio1 = mcuAlive ? ((Math.sin(2 * Math.PI * q.freq * t) > 0) ? q.vcc : 0) : 0;
-  const gpio2 = mcuAlive ? ((Math.sin(2 * Math.PI * q.freq * t + 0.3) > 0) ? q.vcc : 0) : 0;
-
-  if (gpio1 > q.vcc * 0.5 && lastG1 < q.vcc * 0.5) capV = Math.min(capV + (q.vcc * 0.9 - capV) * 0.75, q.vcc * 0.92);
-  if (gpio2 > q.vcc * 0.5 && lastG2 < q.vcc * 0.5) cap2V = Math.min(cap2V + (q.vcc * 0.9 - cap2V) * 0.75, q.vcc * 0.92);
-
-  capV  = Math.max(0, Math.min(q.vcc, capV  - capV  * (DT / q.tau)));
-  cap2V = Math.max(0, Math.min(q.vcc, cap2V - cap2V * (DT / q.tau)));
-  lastG1 = gpio1; lastG2 = gpio2;
-
-  const vref = q.vref;
-  const cmpOut = (capV > vref && cap2V > vref) ? q.vcc : 0;
-  const relayOn = cmpOut > q.vcc * 0.5;
-  const relayCoil = relayOn ? q.vcc : 0;
-  const circuitOut = relayOn ? q.vcc : 0;
-
-  const vals = { gpio: gpio1, cap: capV, cap2: cap2V, vref: vref, cmp: cmpOut, relay: relayCoil, out: circuitOut };
-
-  Object.keys(vals).forEach(k => {
-    push(histories[k], vals[k]);
-    if (charts[k]) {
-      charts[k].data.datasets[0].data = [...histories[k]];
-      charts[k].update('none');
-      const el = document.getElementById('pval-' + k);
-      if (el) el.textContent = vals[k].toFixed(2) + ' V';
-    }
-  });
-
-  updateCircuitVisuals(vals, q, relayOn);
-}
-
-function updateCircuitVisuals(vals, q, relayOn) {
-  const gpioHigh = vals.gpio > q.vcc * 0.4;
-  const capHigh  = vals.cap > q.vref;
-
-  toggleWire('w-gpio1', gpioHigh);
-  toggleWire('w-rc1',   capHigh);
-  toggleWire('w-ic4in', capHigh);
-  toggleWire('w-ic4out', relayOn);
-  toggleWire('w-relay-coil', relayOn);
-  toggleWire('w-trip', !relayOn);
-
-  const relayBody  = document.getElementById('relay-body');
-  const relayLabel = document.getElementById('relay-state-text');
-  const relayCtx   = document.getElementById('relay-contact-text');
-  const outBox     = document.getElementById('circuit-out-box');
-  const outLabel   = document.getElementById('circuit-out-label');
-  const outSub     = document.getElementById('circuit-out-sub');
-
-  if (relayOn) {
-    relayBody.setAttribute('stroke', '#1D9E75');
-    relayLabel.setAttribute('fill', '#1D9E75');
-    relayCtx.textContent = 'NC — CLOSED';
-    relayCtx.setAttribute('fill', '#1D9E75');
-    outBox.setAttribute('stroke', '#1D9E75');
-    outLabel.setAttribute('fill', '#1D9E75');
-    outLabel.textContent = 'SHUTDOWN';
-    outSub.textContent = 'CIRCUIT — OK';
-  } else {
-    relayBody.setAttribute('stroke', '#ff3355');
-    relayLabel.setAttribute('fill', '#ff3355');
-    relayCtx.textContent = 'NC — OPEN ⚠';
-    relayCtx.setAttribute('fill', '#ff3355');
-    outBox.setAttribute('stroke', '#ff3355');
-    outLabel.setAttribute('fill', '#ff3355');
-    outLabel.textContent = '⚠ SHUTDOWN';
-    outSub.textContent = 'CIRCUIT — TRIPPED';
-  }
-
-  const pill  = document.getElementById('status-pill');
-  const stxt  = document.getElementById('status-text');
-  if (!mcuAlive && !relayOn) {
-    pill.className = 'status-pill tripped';
-    stxt.textContent = 'WATCHDOG TRIPPED';
-  } else if (!mcuAlive) {
-    pill.className = 'status-pill warning';
-    const rem = Math.max(0, q.tau * Math.log(Math.max(vals.cap, 0.01) / q.vref));
-    stxt.textContent = 'MCU FROZEN — ~' + rem.toFixed(2) + 's';
-  } else {
-    pill.className = 'status-pill ok';
-    stxt.textContent = 'MCU RUNNING';
-  }
-
-  updateProbeTooltip(vals, q);
-}
-
-function updateProbeTooltip(vals, q) {
-  activeNodes.forEach(key => {
-    const el = document.getElementById('nd-' + key);
-    if (!el) return;
-    const v = vals[key];
-    const pct = Math.max(0, Math.min(1, v / q.vcc));
-    const cfg = nodeConfig[key];
-    el.setAttribute('r', 3 + pct * 2);
-  });
-}
-
-function toggleWire(id, on) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (on) el.classList.add('on'); else el.classList.remove('on');
-}
-
-document.getElementById('sl-freq').oninput = function() {
-  document.getElementById('lf').textContent = parseFloat(this.value).toFixed(1) + ' Hz';
-};
-document.getElementById('sl-tau').oninput = function() {
-  document.getElementById('lt').textContent = parseFloat(this.value).toFixed(2) + ' s';
-};
-document.getElementById('sl-vref').oninput = function() {
-  document.getElementById('lv').textContent = parseFloat(this.value).toFixed(2) + ' V';
-};
-document.getElementById('sl-vcc').oninput = function() {
-  document.getElementById('lvc').textContent = parseFloat(this.value).toFixed(1) + ' V';
-};
-
-function freezeMCU() {
-  mcuAlive = false;
-  document.getElementById('btn-freeze').disabled = true;
-  document.getElementById('btn-resume').disabled = false;
-}
-function resumeMCU() {
-  mcuAlive = true;
-  document.getElementById('btn-freeze').disabled = false;
-  document.getElementById('btn-resume').disabled = true;
-}
-function resetSim() {
-  mcuAlive = true; t = 0; capV = 0; cap2V = 0; lastG1 = 0; lastG2 = 0;
-  Object.keys(histories).forEach(k => histories[k].fill(0));
-  document.getElementById('btn-freeze').disabled = false;
-  document.getElementById('btn-resume').disabled = true;
-}
-
-setInterval(tick, DT * 1000);
+})();
 </script>
+
 </body>
 </html>
