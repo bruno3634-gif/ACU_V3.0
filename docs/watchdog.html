@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analog Watchdog — Interactive Circuit</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0e14;
+    --bg2: #111720;
+    --bg3: #161e2a;
+    --border: #1e2d40;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ffaa00;
+    --danger: #ff4466;
+    --text: #c8d8e8;
+    --text2: #607080;
+    --green: #00c97a;
+    --red: #ff3355;
+    --wire: #2a4060;
+    --wire-active: #00aaff;
+    --wire-trip: #ff3355;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .header {
+    padding: 1.2rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+  }
+
+  .header-left h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  .header-left p {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 2px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    border: 1px solid;
+    transition: all 0.3s;
+  }
+  .status-pill.ok { border-color: var(--green); color: var(--green); background: rgba(0,201,122,0.08); }
+  .status-pill.tripped { border-color: var(--red); color: var(--red); background: rgba(255,51,85,0.08); }
+  .status-pill.warning { border-color: var(--warn); color: var(--warn); background: rgba(255,170,0,0.08); }
+
+  .pulse-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    animation: blink 1s infinite;
+  }
+  .ok .pulse-dot { background: var(--green); }
+  .tripped .pulse-dot { background: var(--red); animation: none; }
+  .warning .pulse-dot { background: var(--warn); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    height: calc(100vh - 60px);
+  }
+
+  .circuit-panel {
+    padding: 1.5rem;
+    overflow: hidden;
+    position: relative;
+    border-right: 1px solid var(--border);
+  }
+
+  .circuit-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .circuit-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  svg#circuit {
+    width: 100%;
+    height: calc(100% - 40px);
+    display: block;
+  }
+
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .controls-area {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .ctrl-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: .75rem;
+  }
+
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .ctrl-row label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .ctrl-row input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 3px;
+  }
+  .ctrl-row .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    width: 52px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .btn-freeze {
+    border-color: var(--warn);
+    color: var(--warn);
+    background: rgba(255,170,0,0.08);
+  }
+  .btn-freeze:hover { background: rgba(255,170,0,0.18); }
+  .btn-freeze:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-resume {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,201,122,0.08);
+  }
+  .btn-resume:hover { background: rgba(0,201,122,0.18); }
+  .btn-resume:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-reset {
+    border-color: var(--border);
+    color: var(--text2);
+    background: transparent;
+    margin-left: auto;
+  }
+  .btn-reset:hover { border-color: var(--text2); color: var(--text); }
+
+  .plot-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 1.2rem;
+    background: var(--bg);
+  }
+
+  .plot-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: .75rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .chart-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: .5rem .8rem .8rem;
+  }
+  .chart-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .chart-container {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+  }
+
+  /* SVG node styles */
+  .node-hit {
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .node-hit:hover .node-circle { filter: brightness(1.5); }
+  .node-circle {
+    transition: all 0.2s;
+  }
+
+  .component-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: #607080;
+    pointer-events: none;
+  }
+  .component-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    fill: #405060;
+    pointer-events: none;
+  }
+  .wire { stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .wire-bg { stroke: var(--wire); }
+  .wire-sig { stroke: var(--wire-active); stroke-width: 2; opacity: 0; transition: opacity 0.3s; }
+  .wire-sig.on { opacity: 1; }
+  .wire-trip { stroke: var(--wire-trip); stroke-width: 2; opacity: 0; transition: opacity 0.3s; }
+  .wire-trip.on { opacity: 1; }
+
+  .comp-body { fill: var(--bg3); stroke: #2a4060; stroke-width: 1; }
+  .comp-body-active { fill: #0d1f30; stroke: #00aaff; stroke-width: 1.5; }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    fill: #2a4060;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .vcc-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #ffaa00; }
+  .gnd-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; fill: #405060; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .plot-area::-webkit-scrollbar { width: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>ANALOG_WATCHDOG.SchDoc</h1>
+    <p>hardware circuit simulator — click any node to probe voltage</p>
+  </div>
+  <div class="header-right">
+    <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border:1px solid var(--border);border-radius:20px;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;text-decoration:none;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">&larr; Docs</a>
+    <div class="status-pill ok" id="status-pill">
+      <div class="pulse-dot"></div>
+      <span id="status-text">MCU RUNNING</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="circuit-panel">
+    <div class="circuit-title">schematic view</div>
+    <svg id="circuit" viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- Background grid -->
+      <defs>
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#111820" stroke-width="0.5"/>
+        </pattern>
+        <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L6,3 z" fill="#00aaff"/>
+        </marker>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="720" height="440" fill="url(#grid)"/>
+
+      <!-- Section labels -->
+      <text x="30" y="22" class="section-label">① PULSE INPUT</text>
+      <text x="190" y="22" class="section-label">② RC INTEGRATOR</text>
+      <text x="360" y="22" class="section-label">③ COMPARATOR IC4</text>
+      <text x="540" y="22" class="section-label">④ RELAY K1</text>
+
+      <!-- ======== SECTION 1: MCU PULSE + TRANSISTOR Q12 ======== -->
+
+      <!-- MCU block -->
+      <rect x="20" y="60" width="70" height="44" rx="3" class="comp-body"/>
+      <text x="55" y="78" text-anchor="middle" class="component-label" fill="#00d4ff">MCU</text>
+      <text x="55" y="91" text-anchor="middle" class="component-value" fill="#607080">GPIO</text>
+      <text x="55" y="101" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#3a6080">10 Hz</text>
+
+      <!-- R66 -->
+      <line x1="90" y1="82" x2="120" y2="82" stroke="#2a4060" stroke-width="1.5"/>
+      <rect x="120" y="76" width="24" height="12" rx="2" class="comp-body"/>
+      <text x="132" y="72" text-anchor="middle" class="component-label">R66</text>
+      <text x="132" y="93" text-anchor="middle" class="component-value">220Ω</text>
+
+      <!-- Q12 transistor (NPN symbol) -->
+      <line x1="144" y1="82" x2="162" y2="82" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="162" y1="68" x2="162" y2="100" stroke="#2a5070" stroke-width="2"/>
+      <line x1="162" y1="78" x2="175" y2="68" stroke="#2a5070" stroke-width="1.5"/>
+      <line x1="162" y1="88" x2="175" y2="98" stroke="#2a5070" stroke-width="1.5"/>
+      <polygon points="168,94 175,98 170,100" fill="#2a5070"/>
+      <line x1="175" y1="68" x2="175" y2="52" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="175" y1="98" x2="175" y2="116" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="163" y="62" class="component-label">Q12</text>
+
+      <!-- VCC to Q12 collector via R61, D5 -->
+      <text x="175" y="46" text-anchor="middle" class="vcc-label">+5V</text>
+      <line x1="175" y1="48" x2="175" y2="52" stroke="#ffaa00" stroke-width="1"/>
+      <!-- D5 diode symbol -->
+      <polygon points="175,52 175,62 183,57" fill="#1a3040" stroke="#2a5070" stroke-width="1"/>
+      <line x1="183" y1="52" x2="183" y2="62" stroke="#2a5070" stroke-width="1.5"/>
+      <line x1="183" y1="57" x2="175" y2="57" stroke="#2a4060" stroke-width="1"/>
+      <text x="186" y="57" class="component-label">D5</text>
+
+      <!-- GND from Q12 emitter -->
+      <line x1="175" y1="116" x2="175" y2="126" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="175" y="136" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="169" y1="128" x2="181" y2="128" stroke="#405060" stroke-width="1.5"/>
+      <line x1="172" y1="131" x2="178" y2="131" stroke="#405060" stroke-width="1"/>
+
+      <!-- Wire from Q12 collector to RC network junction -->
+      <line x1="175" y1="62" x2="200" y2="62" stroke="#2a4060" stroke-width="1.5"/>
+
+      <!-- ======== SECTION 2: RC NETWORK ======== -->
+
+      <!-- C28 capacitor -->
+      <line x1="200" y1="62" x2="200" y2="80" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="193" y1="80" x2="207" y2="80" stroke="#2a6080" stroke-width="2"/>
+      <line x1="193" y1="84" x2="207" y2="84" stroke="#2a6080" stroke-width="2"/>
+      <line x1="200" y1="84" x2="200" y2="100" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="200" y1="100" x2="200" y2="110" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="210" y="83" class="component-label">C28</text>
+      <text x="210" y="91" class="component-value">3.3µF</text>
+      <text x="200" y="120" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="194" y1="112" x2="206" y2="112" stroke="#405060" stroke-width="1.5"/>
+      <line x1="197" y1="115" x2="203" y2="115" stroke="#405060" stroke-width="1"/>
+
+      <!-- R64 -->
+      <line x1="200" y1="62" x2="230" y2="62" stroke="#2a4060" stroke-width="1.5"/>
+      <rect x="230" y="56" width="28" height="12" rx="2" class="comp-body"/>
+      <text x="244" y="52" text-anchor="middle" class="component-label">R64</text>
+      <text x="244" y="77" text-anchor="middle" class="component-value">150kΩ</text>
+      <line x1="258" y1="62" x2="290" y2="62" stroke="#2a4060" stroke-width="1.5"/>
+
+      <!-- C29 -->
+      <line x1="290" y1="62" x2="290" y2="78" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="283" y1="78" x2="297" y2="78" stroke="#2a6080" stroke-width="2"/>
+      <line x1="283" y1="82" x2="297" y2="82" stroke="#2a6080" stroke-width="2"/>
+      <line x1="290" y1="82" x2="290" y2="100" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="300" y="81" class="component-label">C29</text>
+      <text x="300" y="89" class="component-value">3.3µF</text>
+      <line x1="290" y1="100" x2="290" y2="110" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="290" y="120" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="284" y1="112" x2="296" y2="112" stroke="#405060" stroke-width="1.5"/>
+      <line x1="287" y1="115" x2="293" y2="115" stroke="#405060" stroke-width="1"/>
+
+      <!-- Junction node at RC output (VINA+) -->
+      <line x1="290" y1="62" x2="340" y2="62" stroke="#2a4060" stroke-width="1.5"/>
+
+      <!-- ======== SECTION 3: IC4 COMPARATOR ======== -->
+
+      <!-- IC4 body -->
+      <rect x="340" y="40" width="80" height="80" rx="4" class="comp-body"/>
+      <text x="380" y="55" text-anchor="middle" class="component-label" fill="#00d4ff">IC4</text>
+      <text x="380" y="66" text-anchor="middle" class="component-value" fill="#405060">DUAL OP-AMP</text>
+
+      <!-- IC4 pins labels -->
+      <text x="345" y="78" class="component-value">VINA+</text>
+      <text x="345" y="90" class="component-value">VINA-</text>
+      <text x="345" y="102" class="component-value">VSS</text>
+      <text x="390" y="78" class="component-value">VOUTA</text>
+      <text x="390" y="90" class="component-value">VDD</text>
+
+      <!-- Input wire to IC4 VINA+ -->
+      <line x1="340" y1="74" x2="290" y2="62" stroke="#2a4060" stroke-width="1"/>
+
+      <!-- Vref divider -->
+      <line x1="340" y1="86" x2="320" y2="86" stroke="#2a4060" stroke-width="1.5"/>
+      <!-- R63 top -->
+      <rect x="305" y="80" width="15" height="8" rx="1" class="comp-body"/>
+      <text x="302" y="78" class="component-value">R63</text>
+      <line x1="305" y1="84" x2="298" y2="84" stroke="#2a4060" stroke-width="1"/>
+      <line x1="298" y1="84" x2="298" y2="76" stroke="#ffaa00" stroke-width="1"/>
+      <text x="295" y="72" text-anchor="middle" class="vcc-label" style="font-size:8px">+5V</text>
+      <!-- R65 bottom -->
+      <line x1="320" y1="86" x2="320" y2="100" stroke="#2a4060" stroke-width="1.5"/>
+      <rect x="313" y="100" width="15" height="8" rx="1" class="comp-body"/>
+      <text x="302" y="107" class="component-value">R65</text>
+      <line x1="313" y1="104" x2="306" y2="104" stroke="#2a4060" stroke-width="1"/>
+      <line x1="306" y1="104" x2="306" y2="114" stroke="#2a4060" stroke-width="1"/>
+      <text x="306" y="122" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="300" y1="116" x2="312" y2="116" stroke="#405060" stroke-width="1.5"/>
+      <line x1="303" y1="119" x2="309" y2="119" stroke="#405060" stroke-width="1"/>
+
+      <!-- IC4 output (VOUTA) -->
+      <line x1="420" y1="74" x2="460" y2="74" stroke="#2a4060" stroke-width="1.5"/>
+
+      <!-- ======== SECTION 4: RELAY DRIVER + K1 ======== -->
+
+      <!-- Q14 transistor (relay driver) -->
+      <line x1="460" y1="60" x2="460" y2="92" stroke="#2a5070" stroke-width="2"/>
+      <line x1="460" y1="70" x2="472" y2="62" stroke="#2a5070" stroke-width="1.5"/>
+      <line x1="460" y1="80" x2="472" y2="88" stroke="#2a5070" stroke-width="1.5"/>
+      <polygon points="466,85 472,88 469,91" fill="#2a5070"/>
+      <line x1="460" y1="74" x2="446" y2="74" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="472" y1="62" x2="472" y2="52" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="472" y1="88" x2="472" y2="102" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="458" y="55" class="component-label">Q14</text>
+
+      <!-- K1 Relay coil -->
+      <rect x="490" y="36" width="70" height="50" rx="3" class="comp-body" id="relay-body"/>
+      <text x="525" y="52" text-anchor="middle" class="component-label" fill="#00d4ff" id="relay-label">K1</text>
+      <text x="525" y="63" text-anchor="middle" class="component-value" id="relay-state-text">RELAY</text>
+      <text x="525" y="73" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:7px;fill:#2a5070" id="relay-contact-text">NC — CLOSED</text>
+
+      <!-- VCC to relay -->
+      <text x="525" y="30" text-anchor="middle" class="vcc-label">VCC</text>
+      <line x1="525" y1="32" x2="525" y2="36" stroke="#ffaa00" stroke-width="1"/>
+
+      <!-- Relay to Q14 collector -->
+      <line x1="490" y1="60" x2="472" y2="60" stroke="#2a4060" stroke-width="1"/>
+      <line x1="472" y1="60" x2="472" y2="52" stroke="#2a4060" stroke-width="1"/>
+
+      <!-- D6 flyback diode -->
+      <line x1="560" y1="36" x2="560" y2="52" stroke="#2a4060" stroke-width="1"/>
+      <polygon points="556,42 560,36 564,42" fill="#1a3040" stroke="#2a5070" stroke-width="1"/>
+      <line x1="556" y1="42" x2="564" y2="42" stroke="#2a5070" stroke-width="1.5"/>
+      <text x="567" y="45" class="component-label">D6</text>
+
+      <!-- Q14 emitter to GND -->
+      <line x1="472" y1="102" x2="472" y2="114" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="472" y="124" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="466" y1="116" x2="478" y2="116" stroke="#405060" stroke-width="1.5"/>
+      <line x1="469" y1="119" x2="475" y2="119" stroke="#405060" stroke-width="1"/>
+
+      <!-- Relay contacts output -->
+      <line x1="560" y1="62" x2="600" y2="62" stroke="#2a4060" stroke-width="1.5"/>
+      <rect x="600" y="50" width="80" height="28" rx="3" class="comp-body" id="circuit-out-box"/>
+      <text x="640" y="62" text-anchor="middle" class="component-label" id="circuit-out-label">SHUTDOWN</text>
+      <text x="640" y="73" text-anchor="middle" class="component-value" id="circuit-out-sub">CIRCUIT — OK</text>
+
+      <!-- ======== SECTION 2B: Lower half — Q13/Q18 second channel ======== -->
+      <text x="30" y="185" class="section-label">① PULSE INPUT CH.2</text>
+      <text x="190" y="185" class="section-label">② RC INTEGRATOR CH.2</text>
+
+      <!-- MCU block 2 -->
+      <rect x="20" y="195" width="70" height="44" rx="3" class="comp-body"/>
+      <text x="55" y="213" text-anchor="middle" class="component-label" fill="#00d4ff">MCU</text>
+      <text x="55" y="224" text-anchor="middle" class="component-value" fill="#607080">GPIO 2A</text>
+      <text x="55" y="234" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#3a6080">10 Hz</text>
+
+      <!-- R111 -->
+      <line x1="90" y1="217" x2="120" y2="217" stroke="#2a4060" stroke-width="1.5"/>
+      <rect x="120" y="211" width="24" height="12" rx="2" class="comp-body"/>
+      <text x="132" y="207" text-anchor="middle" class="component-label">R111</text>
+      <text x="132" y="231" text-anchor="middle" class="component-value">220Ω</text>
+
+      <!-- Q18 + Q13 -->
+      <line x1="144" y1="217" x2="162" y2="217" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="162" y1="203" x2="162" y2="235" stroke="#2a5070" stroke-width="2"/>
+      <line x1="162" y1="213" x2="175" y2="203" stroke="#2a5070" stroke-width="1.5"/>
+      <line x1="162" y1="223" x2="175" y2="233" stroke="#2a5070" stroke-width="1.5"/>
+      <polygon points="168,229 175,233 170,235" fill="#2a5070"/>
+      <line x1="175" y1="203" x2="175" y2="190" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="175" y1="233" x2="175" y2="250" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="163" y="197" class="component-label">Q18/Q13</text>
+
+      <text x="175" y="183" text-anchor="middle" class="vcc-label">+5V</text>
+      <line x1="175" y1="185" x2="175" y2="190" stroke="#ffaa00" stroke-width="1"/>
+
+      <line x1="175" y1="250" x2="175" y2="260" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="175" y="270" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="169" y1="262" x2="181" y2="262" stroke="#405060" stroke-width="1.5"/>
+      <line x1="172" y1="265" x2="178" y2="265" stroke="#405060" stroke-width="1"/>
+
+      <!-- Wire to second RC -->
+      <line x1="175" y1="197" x2="200" y2="197" stroke="#2a4060" stroke-width="1.5"/>
+
+      <!-- C31 -->
+      <line x1="200" y1="197" x2="200" y2="213" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="193" y1="213" x2="207" y2="213" stroke="#2a6080" stroke-width="2"/>
+      <line x1="193" y1="217" x2="207" y2="217" stroke="#2a6080" stroke-width="2"/>
+      <line x1="200" y1="217" x2="200" y2="240" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="210" y="216" class="component-label">C31</text>
+      <text x="210" y="224" class="component-value">3.3µF</text>
+      <text x="200" y="252" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="194" y1="244" x2="206" y2="244" stroke="#405060" stroke-width="1.5"/>
+      <line x1="197" y1="247" x2="203" y2="247" stroke="#405060" stroke-width="1"/>
+
+      <!-- R70 -->
+      <line x1="200" y1="197" x2="230" y2="197" stroke="#2a4060" stroke-width="1.5"/>
+      <rect x="230" y="191" width="28" height="12" rx="2" class="comp-body"/>
+      <text x="244" y="187" text-anchor="middle" class="component-label">R70</text>
+      <text x="244" y="212" text-anchor="middle" class="component-value">150kΩ</text>
+      <line x1="258" y1="197" x2="290" y2="197" stroke="#2a4060" stroke-width="1.5"/>
+
+      <!-- C32 -->
+      <line x1="290" y1="197" x2="290" y2="213" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="283" y1="213" x2="297" y2="213" stroke="#2a6080" stroke-width="2"/>
+      <line x1="283" y1="217" x2="297" y2="217" stroke="#2a6080" stroke-width="2"/>
+      <line x1="290" y1="217" x2="290" y2="240" stroke="#2a4060" stroke-width="1.5"/>
+      <text x="300" y="216" class="component-label">C32</text>
+      <text x="300" y="224" class="component-value">3.3µF</text>
+      <text x="290" y="252" text-anchor="middle" class="gnd-label">GND</text>
+      <line x1="284" y1="244" x2="296" y2="244" stroke="#405060" stroke-width="1.5"/>
+      <line x1="287" y1="247" x2="293" y2="247" stroke="#405060" stroke-width="1"/>
+
+      <!-- Connect second RC to IC4 VINB+ -->
+      <line x1="290" y1="197" x2="340" y2="197" stroke="#2a4060" stroke-width="1.5"/>
+      <line x1="340" y1="197" x2="340" y2="102" stroke="#2a4060" stroke-width="1"/>
+      <line x1="340" y1="102" x2="340" y2="102" stroke="#2a4060" stroke-width="1"/>
+      <text x="342" y="155" class="component-value">VINB+</text>
+
+      <!-- ======== OPTOCOUPLER FEEDBACK ======== -->
+      <text x="30" y="310" class="section-label">⑤ OPTOCOUPLER FEEDBACK</text>
+
+      <rect x="30" y="320" width="80" height="50" rx="3" class="comp-body"/>
+      <text x="70" y="337" text-anchor="middle" class="component-label" fill="#00d4ff">TCMT1103</text>
+      <text x="70" y="349" text-anchor="middle" class="component-value">OPTOCOUPLER</text>
+      <text x="70" y="360" text-anchor="middle" class="component-value">isolation</text>
+
+      <!-- feedback wire from relay -->
+      <line x1="490" y1="80" x2="480" y2="80" stroke="#2a4060" stroke-width="1"/>
+      <line x1="480" y1="80" x2="480" y2="340" stroke="#2a4060" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="480" y1="340" x2="200" y2="340" stroke="#2a4060" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="200" y1="340" x2="110" y2="340" stroke="#2a4060" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="300" y="336" text-anchor="middle" class="component-value" fill="#2a5070">R_FEEBACK → MCU</text>
+
+      <!-- R73, R77 -->
+      <rect x="140" y="332" width="20" height="10" rx="1" class="comp-body"/>
+      <text x="150" y="329" text-anchor="middle" class="component-value">R73/R77</text>
+      <line x1="160" y1="337" x2="200" y2="337" stroke="#2a4060" stroke-width="1"/>
+
+      <!-- MCU feedback input -->
+      <rect x="200" y="320" width="60" height="34" rx="3" class="comp-body"/>
+      <text x="230" y="334" text-anchor="middle" class="component-label" fill="#00d4ff">MCU</text>
+      <text x="230" y="345" text-anchor="middle" class="component-value">FEEDBACK</text>
+      <text x="230" y="354" text-anchor="middle" class="component-value">INPUT</text>
+
+      <!-- ======== ACTIVE WIRE OVERLAYS (animated) ======== -->
+      <!-- GPIO pulse wire (ch1) -->
+      <line id="w-gpio1" x1="90" y1="82" x2="144" y2="82" class="wire wire-sig"/>
+      <!-- RC charge wire -->
+      <line id="w-rc1" x1="175" y1="62" x2="290" y2="62" class="wire wire-sig"/>
+      <!-- IC4 input wire -->
+      <line id="w-ic4in" x1="290" y1="62" x2="340" y2="74" class="wire wire-sig"/>
+      <!-- IC4 output wire -->
+      <line id="w-ic4out" x1="420" y1="74" x2="460" y2="74" class="wire wire-sig"/>
+      <!-- Relay coil wire -->
+      <line id="w-relay-coil" x1="472" y1="52" x2="490" y2="60" class="wire wire-sig"/>
+      <!-- Trip wires (shown when relay opens) -->
+      <line id="w-trip" x1="560" y1="62" x2="600" y2="62" class="wire wire-trip"/>
+
+      <!-- ======== CLICKABLE PROBE NODES ======== -->
+
+      <!-- Node: MCU GPIO output -->
+      <g class="node-hit" onclick="selectNode('gpio')" id="node-gpio">
+        <circle cx="90" cy="82" r="7" fill="#0d1820" stroke="#378ADD" stroke-width="1.5" class="node-circle"/>
+        <circle cx="90" cy="82" r="3" fill="#378ADD" id="nd-gpio"/>
+        <text x="90" y="72" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#378ADD">GPIO</text>
+      </g>
+
+      <!-- Node: Cap junction (VINA+) -->
+      <g class="node-hit" onclick="selectNode('cap')" id="node-cap">
+        <circle cx="260" cy="62" r="7" fill="#0d1820" stroke="#1D9E75" stroke-width="1.5" class="node-circle"/>
+        <circle cx="260" cy="62" r="3" fill="#1D9E75" id="nd-cap"/>
+        <text x="260" y="52" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#1D9E75">CAP</text>
+      </g>
+
+      <!-- Node: Vref -->
+      <g class="node-hit" onclick="selectNode('vref')" id="node-vref">
+        <circle cx="320" cy="86" r="7" fill="#0d1820" stroke="#BA7517" stroke-width="1.5" class="node-circle"/>
+        <circle cx="320" cy="86" r="3" fill="#BA7517" id="nd-vref"/>
+        <text x="320" y="76" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#BA7517">VREF</text>
+      </g>
+
+      <!-- Node: IC4 output (comparator out) -->
+      <g class="node-hit" onclick="selectNode('cmp')" id="node-cmp">
+        <circle cx="440" cy="74" r="7" fill="#0d1820" stroke="#EF9F27" stroke-width="1.5" class="node-circle"/>
+        <circle cx="440" cy="74" r="3" fill="#EF9F27" id="nd-cmp"/>
+        <text x="440" y="64" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#EF9F27">CMP</text>
+      </g>
+
+      <!-- Node: Relay coil voltage -->
+      <g class="node-hit" onclick="selectNode('relay')" id="node-relay">
+        <circle cx="525" cy="86" r="7" fill="#0d1820" stroke="#D85A30" stroke-width="1.5" class="node-circle"/>
+        <circle cx="525" cy="86" r="3" fill="#D85A30" id="nd-relay"/>
+        <text x="525" y="96" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#D85A30">COIL</text>
+      </g>
+
+      <!-- Node: Circuit output -->
+      <g class="node-hit" onclick="selectNode('out')" id="node-out">
+        <circle cx="640" cy="86" r="7" fill="#0d1820" stroke="#ff4466" stroke-width="1.5" class="node-circle"/>
+        <circle cx="640" cy="86" r="3" fill="#ff4466" id="nd-out"/>
+        <text x="640" y="96" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#ff4466">OUT</text>
+      </g>
+
+      <!-- Node: Cap Ch2 -->
+      <g class="node-hit" onclick="selectNode('cap2')" id="node-cap2">
+        <circle cx="260" cy="197" r="7" fill="#0d1820" stroke="#5DCAA5" stroke-width="1.5" class="node-circle"/>
+        <circle cx="260" cy="197" r="3" fill="#5DCAA5" id="nd-cap2"/>
+        <text x="260" y="187" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:8px;fill:#5DCAA5">CAP2</text>
+      </g>
+
+      <!-- Probe tooltip -->
+      <g id="probe-tip" opacity="0">
+        <rect id="probe-bg" x="0" y="0" width="70" height="22" rx="3" fill="#0a0e14" stroke="#00d4ff" stroke-width="1"/>
+        <text id="probe-text" x="35" y="15" text-anchor="middle" style="font-family:'JetBrains Mono',monospace;font-size:10px;fill:#00d4ff">0.00 V</text>
+      </g>
+
+    </svg>
+  </div>
+
+  <!-- Side panel -->
+  <div class="side-panel">
+    <div class="controls-area">
+      <div class="ctrl-title">simulation controls</div>
+      <div class="ctrl-row">
+        <label>MCU freq</label>
+        <input type="range" id="sl-freq" min="1" max="20" step="0.5" value="10">
+        <span class="val" id="lf">10.0 Hz</span>
+      </div>
+      <div class="ctrl-row">
+        <label>τ (RC)</label>
+        <input type="range" id="sl-tau" min="0.1" max="2" step="0.05" value="0.5">
+        <span class="val" id="lt">0.50 s</span>
+      </div>
+      <div class="ctrl-row">
+        <label>V_ref</label>
+        <input type="range" id="sl-vref" min="0.5" max="4.5" step="0.05" value="2.5">
+        <span class="val" id="lv">2.50 V</span>
+      </div>
+      <div class="ctrl-row">
+        <label>V_supply</label>
+        <input type="range" id="sl-vcc" min="3" max="5" step="0.1" value="5">
+        <span class="val" id="lvc">5.0 V</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn-freeze" id="btn-freeze" onclick="freezeMCU()">⏸ Freeze MCU</button>
+        <button class="btn-resume" id="btn-resume" onclick="resumeMCU()" disabled>▶ Resume</button>
+        <button class="btn-reset" onclick="resetSim()">↺</button>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-title">voltage probes — click schematic nodes to add/remove</div>
+      <div class="chart-container">
+        <canvas id="master-chart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const HIST = 200, DT = 0.03;
+let t=0, capV=0, cap2V=0, lastG1=0, lastG2=0, mcuAlive=true;
+
+const nodeConfig = {
+  gpio:  { label:'GPIO (MCU out)',   desc:'MCU pulse output — 0V/5V square wave', color:'#378ADD', ymin:-0.2, ymax:5.5, unit:'V' },
+  cap:   { label:'CAP1 junction',    desc:'Voltage at RC integrator ch1 output (→ IC4 VINA+)', color:'#1D9E75', ymin:-0.2, ymax:5.5, unit:'V' },
+  cap2:  { label:'CAP2 junction',    desc:'Voltage at RC integrator ch2 output (→ IC4 VINB+)', color:'#5DCAA5', ymin:-0.2, ymax:5.5, unit:'V' },
+  vref:  { label:'V_ref',            desc:'Comparator threshold set by R63/R65 divider', color:'#BA7517', ymin:-0.2, ymax:5.5, unit:'V' },
+  cmp:   { label:'Comparator out',   desc:'IC4 output HIGH when CAP > VREF — drives relay', color:'#EF9F27', ymin:-0.2, ymax:5.5, unit:'V' },
+  relay: { label:'Relay coil',       desc:'Coil voltage — HIGH = energised = NC contacts closed', color:'#D85A30', ymin:-0.2, ymax:5.5, unit:'V' },
+  out:   { label:'Circuit output',   desc:'Downstream circuit state — 5V = alive, 0V = shutdown', color:'#ff4466', ymin:-0.2, ymax:5.5, unit:'V' }
+};
+
+const histories = {};
+const activeNodes = new Set();
+
+Object.keys(nodeConfig).forEach(k => { histories[k] = new Array(HIST).fill(0); });
+
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+let masterChart = null;
+
+function initMasterChart() {
+  const ctx = document.getElementById('master-chart');
+  if (!ctx) return;
+  masterChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: new Array(HIST).fill(''), datasets: [] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#c8d8e8', font: { size: 10, family: 'JetBrains Mono' }, usePointStyle: true, padding: 8, boxWidth: 10 }
+        },
+        tooltip: { enabled: false }
+      },
+      scales: {
+        x: { display: false },
+        y: { min: -0.2, max: 5.5, display: true,
+             ticks: { font: { size: 10, family: 'JetBrains Mono' }, color: '#607080', maxTicksLimit: 5,
+                      callback: v => v.toFixed(1) + 'V' },
+             grid: { color: 'rgba(42,64,96,0.4)' }, border: { display: false } }
+      }
+    }
+  });
+}
+
+function getParams() {
+  return {
+    freq: parseFloat(document.getElementById('sl-freq').value),
+    tau:  parseFloat(document.getElementById('sl-tau').value),
+    vref: parseFloat(document.getElementById('sl-vref').value),
+    vcc:  parseFloat(document.getElementById('sl-vcc').value)
+  };
+}
+
+function selectNode(key) {
+  if (activeNodes.has(key)) {
+    activeNodes.delete(key);
+    if (masterChart) {
+      const idx = masterChart.data.datasets.findIndex(ds => ds._key === key);
+      if (idx !== -1) masterChart.data.datasets.splice(idx, 1);
+      masterChart.update();
+    }
+  } else {
+    activeNodes.add(key);
+    const cfg = nodeConfig[key];
+    if (masterChart) {
+      masterChart.data.datasets.push({
+        _key: key,
+        label: cfg.label,
+        data: [...histories[key]],
+        borderColor: cfg.color,
+        borderWidth: 2.5,
+        pointRadius: 0,
+        tension: 0.1,
+        fill: false
+      });
+      masterChart.update();
+    }
+  }
+  highlightNode(key, activeNodes.has(key));
+}
+
+function highlightNode(key, on) {
+  const el = document.getElementById('node-' + key);
+  if (!el) return;
+  const circle = el.querySelector('.node-circle');
+  if (circle) {
+    circle.style.strokeWidth = on ? '2.5' : '1.5';
+    circle.style.filter = on ? 'url(#glow)' : 'none';
+  }
+}
+
+function push(arr, v) { arr.push(v); if (arr.length > HIST) arr.shift(); }
+
+function tick() {
+  const q = getParams();
+  t += DT;
+
+  const gpio1 = mcuAlive ? ((Math.sin(2 * Math.PI * q.freq * t) > 0) ? q.vcc : 0) : 0;
+  const gpio2 = mcuAlive ? ((Math.sin(2 * Math.PI * q.freq * t + 0.3) > 0) ? q.vcc : 0) : 0;
+
+  if (gpio1 > q.vcc * 0.5 && lastG1 < q.vcc * 0.5) capV = Math.min(capV + (q.vcc * 0.9 - capV) * 0.75, q.vcc * 0.92);
+  if (gpio2 > q.vcc * 0.5 && lastG2 < q.vcc * 0.5) cap2V = Math.min(cap2V + (q.vcc * 0.9 - cap2V) * 0.75, q.vcc * 0.92);
+
+  capV  = Math.max(0, Math.min(q.vcc, capV  - capV  * (DT / q.tau)));
+  cap2V = Math.max(0, Math.min(q.vcc, cap2V - cap2V * (DT / q.tau)));
+  lastG1 = gpio1; lastG2 = gpio2;
+
+  const vref = q.vref;
+  const cmpOut = (capV > vref && cap2V > vref) ? q.vcc : 0;
+  const relayOn = cmpOut > q.vcc * 0.5;
+  const relayCoil = relayOn ? q.vcc : 0;
+  const circuitOut = relayOn ? q.vcc : 0;
+
+  const vals = { gpio: gpio1, cap: capV, cap2: cap2V, vref: vref, cmp: cmpOut, relay: relayCoil, out: circuitOut };
+
+  Object.keys(vals).forEach(k => {
+    push(histories[k], vals[k]);
+    if (masterChart) {
+      const ds = masterChart.data.datasets.find(d => d._key === k);
+      if (ds) ds.data = [...histories[k]];
+    }
+  });
+  if (masterChart) masterChart.update('none');
+
+  updateCircuitVisuals(vals, q, relayOn);
+}
+
+function updateCircuitVisuals(vals, q, relayOn) {
+  const gpioHigh = vals.gpio > q.vcc * 0.4;
+  const capHigh  = vals.cap > q.vref;
+
+  toggleWire('w-gpio1', gpioHigh);
+  toggleWire('w-rc1',   capHigh);
+  toggleWire('w-ic4in', capHigh);
+  toggleWire('w-ic4out', relayOn);
+  toggleWire('w-relay-coil', relayOn);
+  toggleWire('w-trip', !relayOn);
+
+  const relayBody  = document.getElementById('relay-body');
+  const relayLabel = document.getElementById('relay-state-text');
+  const relayCtx   = document.getElementById('relay-contact-text');
+  const outBox     = document.getElementById('circuit-out-box');
+  const outLabel   = document.getElementById('circuit-out-label');
+  const outSub     = document.getElementById('circuit-out-sub');
+
+  if (relayOn) {
+    relayBody.setAttribute('stroke', '#1D9E75');
+    relayLabel.setAttribute('fill', '#1D9E75');
+    relayCtx.textContent = 'NC — CLOSED';
+    relayCtx.setAttribute('fill', '#1D9E75');
+    outBox.setAttribute('stroke', '#1D9E75');
+    outLabel.setAttribute('fill', '#1D9E75');
+    outLabel.textContent = 'SHUTDOWN';
+    outSub.textContent = 'CIRCUIT — OK';
+  } else {
+    relayBody.setAttribute('stroke', '#ff3355');
+    relayLabel.setAttribute('fill', '#ff3355');
+    relayCtx.textContent = 'NC — OPEN ⚠';
+    relayCtx.setAttribute('fill', '#ff3355');
+    outBox.setAttribute('stroke', '#ff3355');
+    outLabel.setAttribute('fill', '#ff3355');
+    outLabel.textContent = '⚠ SHUTDOWN';
+    outSub.textContent = 'CIRCUIT — TRIPPED';
+  }
+
+  const pill  = document.getElementById('status-pill');
+  const stxt  = document.getElementById('status-text');
+  if (!mcuAlive && !relayOn) {
+    pill.className = 'status-pill tripped';
+    stxt.textContent = 'WATCHDOG TRIPPED';
+  } else if (!mcuAlive) {
+    pill.className = 'status-pill warning';
+    const rem = Math.max(0, q.tau * Math.log(Math.max(vals.cap, 0.01) / q.vref));
+    stxt.textContent = 'MCU FROZEN — ~' + rem.toFixed(2) + 's';
+  } else {
+    pill.className = 'status-pill ok';
+    stxt.textContent = 'MCU RUNNING';
+  }
+
+  updateProbeTooltip(vals, q);
+}
+
+function updateProbeTooltip(vals, q) {
+  activeNodes.forEach(key => {
+    const el = document.getElementById('nd-' + key);
+    if (!el) return;
+    const v = vals[key];
+    const pct = Math.max(0, Math.min(1, v / q.vcc));
+    const cfg = nodeConfig[key];
+    el.setAttribute('r', 3 + pct * 2);
+  });
+}
+
+function toggleWire(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (on) el.classList.add('on'); else el.classList.remove('on');
+}
+
+document.getElementById('sl-freq').oninput = function() {
+  document.getElementById('lf').textContent = parseFloat(this.value).toFixed(1) + ' Hz';
+};
+document.getElementById('sl-tau').oninput = function() {
+  document.getElementById('lt').textContent = parseFloat(this.value).toFixed(2) + ' s';
+};
+document.getElementById('sl-vref').oninput = function() {
+  document.getElementById('lv').textContent = parseFloat(this.value).toFixed(2) + ' V';
+};
+document.getElementById('sl-vcc').oninput = function() {
+  document.getElementById('lvc').textContent = parseFloat(this.value).toFixed(1) + ' V';
+};
+
+function freezeMCU() {
+  mcuAlive = false;
+  document.getElementById('btn-freeze').disabled = true;
+  document.getElementById('btn-resume').disabled = false;
+}
+function resumeMCU() {
+  mcuAlive = true;
+  document.getElementById('btn-freeze').disabled = false;
+  document.getElementById('btn-resume').disabled = true;
+}
+function resetSim() {
+  mcuAlive = true; t = 0; capV = 0; cap2V = 0; lastG1 = 0; lastG2 = 0;
+  Object.keys(histories).forEach(k => histories[k].fill(0));
+  document.getElementById('btn-freeze').disabled = false;
+  document.getElementById('btn-resume').disabled = true;
+}
+
+initMasterChart();
+
+setInterval(tick, DT * 1000);
+</script>
+</body>
+</html>
