@@ -6,6 +6,7 @@
  */
 
 #include "APP.h"
+#include <string.h>
 
 
 struct car t24;
@@ -28,6 +29,20 @@ extern struct ring can_rx_ringbuffer;
 uint8_t prev_car_state = -1;
 uint8_t prev_as_state = -1;
 
+/* RN4871 configuration commands — exact spec from SYSTEM_CONTEXT.md */
+#define BLE_CFG_NUM_CMDS  5
+
+static const char* ble_cfg_cmds[BLE_CFG_NUM_CMDS] = {
+    "SS,E18A0001-1E11-4F63-A23A-2D84F600A5D1\r\n",
+    "PS,E18A0002-1E11-4F63-A23A-2D84F600A5D1\r\n",
+    "SH,001A\r\n",
+    "PC,1A\r\n",
+    "---\r\n",
+};
+
+static uint8_t      ble_cfg_state = 0;
+static uint8_t      ble_cfg_index = 0;
+static uint32_t     ble_cfg_tick  = 0;
 
 
 void app_init() {
@@ -42,8 +57,8 @@ void app_init() {
 	t24.Rear_Pressure.Pneumatic = 0;
 	t24.Ignition_Status = 0;
 	t24.Ignition_Request = 0;
-	t24.Solenoid1_Request = 0;
-	t24.Solenoid2_Request = 0;
+	t24.front_solenoid = 0;
+	t24.rear_solenoid = 0;
 	t24.Speed.Speed = 0;
 	t24.Speed.Target_Speed = 0;
 	t24.Emergency = 0;
@@ -55,7 +70,7 @@ void app_init() {
 
 	 Vehicle_state_machine = IDLE;
 	 Autonomous_state = OFF;
-	 startup_sequence_state = Watchdog_check;
+	 startup_sequence_state = WDT_TOGGLE_CHECK;
 
 
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*) ADC_Samples, 4);
@@ -80,50 +95,15 @@ void app_init() {
 	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 	HAL_CAN_Start(&hcan1);
 
-/*	char cmd_buff[64];
-	char rx[64];
-	int len;
-	// Step 1 - enter command mode
-	HAL_UART_Transmit(&huart2, (uint8_t*)"$$$", 3, 100);
-	HAL_Delay(300);  // RN4871 needs time to respond
-
-	// Step 2 - read "CMD>" response
-	HAL_UART_Receive(&huart2, (uint8_t*)rx, 64, 500);
-	// <<< BREAKPOINT HERE - is rx == "CMD>" ?
-
-	memset(rx, 0, sizeof(rx));
-
-	// Step 3 - send V
-	HAL_UART_Transmit(&huart2, (uint8_t*)"V\r\n", 3, 100);
-	HAL_Delay(100);
-
-	// Step 4 - read version response
-	HAL_UART_Receive(&huart2, (uint8_t*)rx, 64, 500);
-	// <<< BREAKPOINT HERE - do you see version string?
-
-	/*HAL_UART_Transmit(&huart2, (uint8_t*) "$$$", 3, 100);
-	HAL_Delay(200);
-
-
-	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
-	HAL_Delay(100);
-
-	//rn4871_cmd_exit_mode(cmd_buff, sizeof(cmd_buff));
-	//HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);
-	//HAL_Delay(100);
-
-	// 4. Agora sim, Reboot
-	rn4871_cmd_reboot(cmd_buff, sizeof(cmd_buff));
-	HAL_UART_Transmit(&huart2, (uint8_t*) cmd_buff, strlen(cmd_buff), 100);*/
-
-	t24.ASSI_state = AS_STATE_EMERGENCY;
 	extern volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
-	//HAL_UART_Receive_(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE);
+
+	ble_module_config_start();
 
 
 }
 
 void app() {
+	ble_module_config_tick();
 	prev_ASMS = t24.ASMS;
 	Peripheral_aquisition(&ASSI_leds_control_signal);
 	temporary_temp = t24.chip_temp;
@@ -136,9 +116,67 @@ void app() {
 	handle_can_tx();
 	can_buffer_pop(&can_rx_ringbuffer, 0,&can_rx_data);
 	dbc_decode();
+	/*if(t24.Autonomous_State == AS_STATE_EMERGENCY){
+		t24.Emergency = 1;
+	}*/
 }
 
 
+void ble_module_config_start(void) {
+    ble_cfg_state = 1;
+    ble_cfg_index = 0;
+    ble_cfg_tick  = HAL_GetTick();
+}
+
+void ble_module_config_tick(void) {
+    uint32_t now = HAL_GetTick();
+
+    switch (ble_cfg_state) {
+
+    case 0: /* idle */
+    case 6: /* done */
+        break;
+
+    case 1: /* ENTER_CMD: send $$$ */
+        HAL_UART_Transmit(&huart2, (uint8_t*)"$$$", 3, 10);
+        ble_cfg_tick = now;
+        ble_cfg_state = 2;
+        break;
+
+    case 2: /* WAIT_ENTER: wait 500ms after $$$ for CMD> prompt */
+        if (now - ble_cfg_tick >= 500) {
+            ble_cfg_index = 0;
+            ble_cfg_tick = now;
+            ble_cfg_state = 3;
+        }
+        break;
+
+    case 3: /* SEND_CMD: send next configuration command */
+        if (ble_cfg_index < BLE_CFG_NUM_CMDS) {
+            HAL_UART_Transmit(&huart2,
+                              (uint8_t*)ble_cfg_cmds[ble_cfg_index],
+                              strlen(ble_cfg_cmds[ble_cfg_index]), 10);
+            ble_cfg_tick = now;
+            ble_cfg_state = 4;
+        } else {
+            ble_cfg_state = 6;   /* all done */
+        }
+        break;
+
+    case 4: /* WAIT_CMD: wait 500ms between commands for AOK response */
+        if (now - ble_cfg_tick >= 500) {
+            ble_cfg_index++;
+            ble_cfg_tick = now;
+            ble_cfg_state = 3;
+        }
+        break;
+    }
+}
+
+
+uint8_t ble_module_config_is_done(void) {
+    return (ble_cfg_state == 6);
+}
 
 
 void dbc_decode(){
@@ -146,7 +184,7 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_AQT7_FRAME_ID:
 		struct autonomous_t26_aqt7_t rear_dynamics;
 		autonomous_t26_aqt7_unpack(&rear_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT7_LENGTH);
-		t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_brk_press_decode(rear_dynamics.brk_press);
+		t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
 		t24.VCU_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 		break;
 	case AUTONOMOUS_T26_VCU_IGN_R2_D_FRAME_ID:

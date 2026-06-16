@@ -12,7 +12,15 @@
 #include <stdbool.h>
 #include "hardware_abstraction.h"
 
-#define SKIP_REAR_PRESSURE_CHECK 1
+// Per-step skip flags for debugging (set to 1 to skip a step)
+#define SKIP_WDT_CHECK        0
+#define SKIP_PNEUMATIC_CHECK  0
+#define SKIP_PRESSURE_CHECK1  0
+#define SKIP_IGNITION_CHECK   0
+#define SKIP_PRESSURE_FRONT_CHECK 0
+#define SKIP_PRESSURE_REAR_CHECK  0
+#define SKIP_PRESSURE_CHECK2  0
+
 #define MAX_TIMEOUT 1000
 
 extern Main_state_machine_t Vehicle_state_machine;

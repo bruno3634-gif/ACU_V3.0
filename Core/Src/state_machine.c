@@ -4,6 +4,9 @@ void Handle_autonomous_state() {
 	switch (Autonomous_state) {
 	case Initial_Sequence:
 		initial_sequence(&t24, &startup_sequence_state, &Vehicle_state_machine);
+		if (t24.Autonomous_State == AS_STATE_READY) {
+			Autonomous_state = Monitor_sequence;
+		}
 		break;
 	case Monitor_sequence:
 		if(t24.Current_Mission != t24.Jetson_mission){
@@ -50,7 +53,7 @@ void Handle_Emergency() {
 }
 
 void Handle_state(uint8_t prev_asms_state) {
-	static uint8_t as_on_first_time = 0, finished_init_sequence = 0;
+	static uint8_t as_on_first_time = 0;
 	switch (Vehicle_state_machine) {
 	case Start:
 		t24.HW_WDT_Enable = 1;
@@ -58,21 +61,17 @@ void Handle_state(uint8_t prev_asms_state) {
 		Vehicle_state_machine = IDLE;
 		break;
 	case IDLE:
-		//ASMS = change from 0 to 1 (1 -> btn closed)
+		as_on_first_time = 0;
 		if (t24.ASMS == 1 && prev_asms_state == 0
 				&& t24.ignition_pin_state == 0) {
 			Vehicle_state_machine = AS_ON;
-		} else {
-			// do not break;
 		}
 		break;
 	case AS_ON:
-		if (finished_init_sequence == 0) {
+		if (!as_on_first_time) {
+			startup_sequence_state = WDT_TOGGLE_CHECK;
 			Autonomous_state = Initial_Sequence;
-			if (!as_on_first_time) {
-				startup_sequence_state = Watchdog_check;
-				as_on_first_time = 1;
-			}
+			as_on_first_time = 1;
 		}
 		Handle_autonomous_state();
 		break;

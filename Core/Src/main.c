@@ -31,6 +31,7 @@
 /* USER CODE BEGIN Includes */
 #include "APP.h"
 #include <stdio.h>
+#include <ctype.h>
 #include "Autonomous_functions.h"
 #include "hardware_abstraction.h"
 #include "autonomous_t26.h"
@@ -77,6 +78,9 @@ ema_data_structure ema_front_pressure;
 
 /* USER CODE BEGIN PV */
 
+static volatile uint8_t ble_tx_busy = 0;
+static uint32_t         ble_tx_tick     = 0;
+
 struct can_queue can_tx_queue[64];
 int can_queue_index = -1;
 
@@ -94,6 +98,12 @@ float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART2) {
+        ble_tx_busy = 0;
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -258,6 +268,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		AS_data.emergency = t24.Emergency;
 		AS_data.ign = t24.Ignition_Request;
 		AS_data.mission_select = t24.Current_Mission;
+		AS_data.acu_state = (uint8_t)Vehicle_state_machine;
+		AS_data.emergency_cause = Emergency_cause;
 
 		autonomous_t26_acu_pack(tx_data, &AS_data, AUTONOMOUS_T26_ACU_LENGTH);
 
@@ -276,16 +288,46 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		autonomous_t26_dv_status_pack(tx_data, &dv_data, AUTONOMOUS_T26_DV_STATUS_LENGTH);
 
 		struct autonomous_t26_asf_signals_t asf_signals;
-		asf_signals.brake_pressure_front = t24.Front_Pressure.Hydraulic;
-		asf_signals.brake_pressure_rear = t24.Rear_Pressure.Hydraulic;
-		asf_signals.ebs_pressure_tank_front = t24.Front_Pressure.Pneumatic;
-		asf_signals.ebs_pressure_tank_rear = t24.Rear_Pressure.Pneumatic;
+		asf_signals.brake_pressure_front = t24.Front_Pressure.Hydraulic * 10;
+		asf_signals.brake_pressure_rear = t24.Rear_Pressure.Hydraulic * 10;
+		asf_signals.ebs_pressure_tank_front = t24.Front_Pressure.Pneumatic * 10;
+		asf_signals.ebs_pressure_tank_rear = t24.Rear_Pressure.Pneumatic * 10;
 		autonomous_t26_asf_signals_pack(tx_data, &asf_signals, AUTONOMOUS_T26_ASF_SIGNALS_LENGTH);
 		can_tx_header.StdId = AUTONOMOUS_T26_ASF_SIGNALS_FRAME_ID;
 		can_tx_header.RTR = CAN_RTR_DATA;
 		can_tx_header.DLC = AUTONOMOUS_T26_ASF_SIGNALS_LENGTH;
 
 		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
+
+		/* ── BLE telemetry: 15-byte packet every TIM2 tick (10 Hz) ── */
+		/* DMA timeout recovery: if TX stuck >500ms, abort and reset */
+		if (ble_tx_busy && (HAL_GetTick() - ble_tx_tick > 500)) {
+		    HAL_UART_Abort(&huart2);
+		    ble_tx_busy = 0;
+		}
+		if (ble_module_config_is_done() && !ble_tx_busy) {
+		    static ble_telemetry_packet_t pkt;
+		    pkt.state_machine      = (uint8_t)Vehicle_state_machine;
+		    pkt.assi_status        = t24.ASSI_state;
+		    pkt.mission            = (uint8_t)t24.Current_Mission;
+		    {   float _v = t24.Front_Pressure.Hydraulic * 100.0f;
+		        pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		    {   float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
+		        pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		    {   float _v = t24.Front_Pressure.Pneumatic * 100.0f;
+		        pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		    {   float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
+		        pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		    {   float _v = t24.chip_temp * 100.0f;
+		        pkt.chip_temp = (_v > 32767.0f) ? 32767 : (_v < -32768.0f) ? -32768 : (int16_t)_v; }
+pkt.solenoid_front     = t24.front_solenoid;
+		pkt.solenoid_rear      = t24.rear_solenoid;
+
+		    if (HAL_UART_Transmit_DMA(&huart2, (uint8_t*)&pkt, sizeof(pkt)) == HAL_OK) {
+		        ble_tx_busy = 1;
+		        ble_tx_tick = HAL_GetTick();
+		    }
+		}
 	}
 }
 
@@ -295,7 +337,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 
 	if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rx_header, rx_data) == HAL_OK) {
 		can_rx_buffer_push(&can_rx_ringbuffer, rx_header, rx_data);
-
 	}
 
 }

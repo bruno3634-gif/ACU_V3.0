@@ -37,6 +37,19 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 
+typedef __attribute__((packed)) struct {
+    uint8_t  state_machine;       // 0  — Vehicle_state_machine
+    uint8_t  assi_status;         // 1  — t24.ASSI_state
+    uint8_t  mission;             // 2  — t24.Current_Mission
+    uint16_t hydraulic_p1;        // 3-4 LE — t24.Front_Pressure.Hydraulic * 100
+    uint16_t hydraulic_p2;        // 5-6 LE — t24.Rear_Pressure.Hydraulic * 100
+    uint16_t pneumatic_p1;        // 7-8 LE — t24.Front_Pressure.Pneumatic * 100
+    uint16_t pneumatic_p2;        // 9-10 LE — t24.Rear_Pressure.Pneumatic * 100
+    int16_t  chip_temp;           // 11-12 LE — t24.chip_temp * 100
+    uint8_t  solenoid_front;      // 13 — t24.front_solenoid
+    uint8_t  solenoid_rear;       // 14 — t24.rear_solenoid
+} ble_telemetry_packet_t;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -172,8 +185,6 @@ struct car {
 	uint8_t Emergency;							// 0 - No , 1 - Emergency
 	uint8_t Res;					// 0 - Not active, 1 - ON , 2 - Emergency
 	uint8_t HW_WDT_Enable;
-	uint8_t Solenoid1_Request;					// 0 - OFF, 1 - ON
-	uint8_t Solenoid2_Request;					// 0 - OFF, 1 - ON
 	uint8_t ignition_pin_state;
 	uint8_t SDC_feedback;
 	uint8_t ASSI_state;
@@ -212,14 +223,16 @@ typedef enum {
 }can_timeouts_t;
 
 
-typedef enum{
-	Watchdog_check,
-	Pressure_check,
-	HV_activation,
-	Pressure_correlation_check,
-	MB1_Check, // Solenoide 1
-	MB2_Check, // Solenoide 2
-	Error_state
+typedef enum {
+	WDT_TOGGLE_CHECK,        // 0 — Check SDC open (LOW), disable WDT
+	WDT_STP_TOGGLE_CHECK,    // 1 — Wait for SDC closed (HIGH), enable WDT (5000ms timeout)
+	PNEUMATIC_CHECK,         // 2 — Check pneumatic 6-10 bar
+	PRESSURE_CHECK1,         // 3 — Hyd correlation pre-ignition (Front >= 9xPneu, Rear >= 3.8xPneu)
+	HV_ACTIVATION,           // 4 — Enable ignition, wait for confirmation
+	PRESSURE_CHECK_FRONT,    // 5 — Solenoid1=1, Solenoid2=0, check Front correlated & Rear unloaded
+	PRESSURE_CHECK_REAR,     // 6 — Solenoid1=0, Solenoid2=1, check Rear correlated & Front unloaded
+	PRESSURE_CHECK2,         // 7 — Both off, final correlation check -> READY
+	SEQUENCE_ERROR           // 8 — Error state -> EMERGENCY
 } startup_sequence_state_t;
 
 struct can_timeouts {
