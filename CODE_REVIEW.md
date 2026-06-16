@@ -385,12 +385,12 @@ There is no CI/CD pipeline for running the host-based tests. The compilation com
 ### `Core/Src/Autonomous_functions.c` (282 lines)
 
 - **Good:** 8-step startup sequence at lines 29-151 is well-structured with clear macros, timing guards, and error propagation. `ASSI_control()` at lines 205-258 has correct 330 ms flash timing (~3 Hz, within the 2-5 Hz requirement).
-- **Critical:** `continuous_monitoring()` at lines 152-203 never called. Solenoid writes to wrong struct fields (C1). `ASSI_control()` modifies local copy (C2). `emergency_blame()` at line 280 is empty.
+- **Critical:** `continuous_monitoring()` at lines 152-203 never called. `ASSI_control()` modifies local copy (C2). `emergency_blame()` at line 280 is empty.
 - **Issues:** `module_timeout()` at lines 269-278 hardcodes 1000 ms for all three modules. `IN_RANGE` macro at line 23 uses strict inequality — pressure exactly at 6.0 or 10.0 bar is rejected (might be intentional).
 
 ### `Core/Src/hardware_abstraction.c` (114 lines)
 
-- **Critical:** Lines 56-57 use `&&` instead of `&` for bit masking (L7). Line 78-84 has no bounds check on `can_queue_index` (C5). Solenoid writes use `front_solenoid`/`rear_solenoid` instead of `Solenoid1_Request`/`Solenoid2_Request` (C1).
+- **Critical:** Lines 56-57 use `&&` instead of `&` for bit masking (L7). Line 78-84 has no bounds check on `can_queue_index` (C5).
 - **Issues:** `handle_can_tx()` at line 63-76 has a logic flaw — `tx_index` advances unconditionally on each call, but `can_queue_index` only resets when all messages are sent. If mailbox is full, messages are skipped.
 
 ### `Core/Src/ble_handler.c` (329 lines)
