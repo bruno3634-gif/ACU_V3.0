@@ -229,8 +229,8 @@ typedef enum {
 	PNEUMATIC_CHECK,         // 2 — Check pneumatic 6-10 bar
 	PRESSURE_CHECK1,         // 3 — Hyd correlation pre-ignition (Front >= 9xPneu, Rear >= 3.8xPneu)
 	HV_ACTIVATION,           // 4 — Enable ignition, wait for confirmation
-	PRESSURE_CHECK_FRONT,    // 5 — Solenoid1=1, Solenoid2=0, check Front correlated & Rear unloaded
-	PRESSURE_CHECK_REAR,     // 6 — Solenoid1=0, Solenoid2=1, check Rear correlated & Front unloaded
+	PRESSURE_CHECK_FRONT,    // 5 — front_solenoid=1, rear_solenoid=0, check Front correlated & Rear unloaded
+	PRESSURE_CHECK_REAR,     // 6 — front_solenoid=0, rear_solenoid=1, check Rear correlated & Front unloaded
 	PRESSURE_CHECK2,         // 7 — Both off, final correlation check -> READY
 	SEQUENCE_ERROR           // 8 — Error state -> EMERGENCY
 } startup_sequence_state_t;
