@@ -1,5 +1,7 @@
 #include "state_machine.h"
 
+
+
 void Handle_autonomous_state() {
 	switch (Autonomous_state) {
 	case Initial_Sequence:
@@ -9,12 +11,14 @@ void Handle_autonomous_state() {
 		}
 		break;
 	case Monitor_sequence:
+		continuous_monitoring(t24.SDC_feedback, NULL,
+			t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,
+			t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
 		if(t24.Current_Mission != t24.Jetson_mission){
 			Vehicle_state_machine = EMERGENCY;
 		}else if(t24.Autonomous_State == Finish){
 			Autonomous_state = Finish;
 		}
-
 		break;
 	case Finish:
 		/***
@@ -65,6 +69,7 @@ void Handle_state(uint8_t prev_asms_state) {
 		if (t24.ASMS == 1 && prev_asms_state == 0
 				&& t24.ignition_pin_state == 0) {
 			Vehicle_state_machine = AS_ON;
+			as_on_first_time = 0;
 		}
 		break;
 	case AS_ON:

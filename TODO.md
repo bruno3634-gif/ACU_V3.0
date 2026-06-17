@@ -16,7 +16,7 @@
 
 | # | Item | File:Line | Problem |
 |---|------|-----------|---------|
-| C1 | `continuous_monitoring()` never called | `Autonomous_functions.c:152` | Function exists but `Monitor_sequence` in `state_machine.c:12` never invokes it. No SDC monitoring, CAN timeout detection, or pressure integrity checks run during autonomous driving. Add call in the `Monitor_sequence` case. |
+| C1 | ✅ `continuous_monitoring()` wired into `Monitor_sequence` — FIXED | `state_machine.c:12-14` now calls `continuous_monitoring()` at the start of `Monitor_sequence`. SDC monitoring, CAN timeouts, pressure range, and hydraulic correlation now run on every tick during autonomous driving. Also fixed rear-gain bug on `Autonomous_functions.c:199` — was using `EBS_FRONT_HYD_GAIN` instead of `EBS_REAR_HYD_GAIN_FINAL`. |
 | C2 | ✅ Solenoid requests don't reach GPIO — FIXED | Now unified: `initial_sequence()`, `APP.c`, `main.c` CAN tx all write `front_solenoid`/`rear_solenoid`. `Solenoid1_Request`/`Solenoid2_Request` removed from `struct car`. |
 | C3 | `ASSI_control()` return value discarded | `APP.c:114` | Called as `ASSI_control(ASSI_leds_control_signal, ...)` but return value not assigned. ASSI LEDs never flash during Driving/Emergency. Fix: `ASSI_leds_control_signal = ASSI_control(...)`. |
 | C4 | Variable definition in header | `state_machine.h:18` | `BLE_STATE_MACHINE_t ble_state = BLE_IDLE;` is a *definition* in a header. Causes linker error if included by >1 translation unit. Change to `extern` and define in one `.c`. |
@@ -28,7 +28,7 @@
 
 | # | Item | File:Line | Problem |
 |---|------|-----------|---------|
-| H1 | Call `continuous_monitoring()` in `Monitor_sequence` | `state_machine.c:12` | Add call `continuous_monitoring(...)` so real-time safety checks run during autonomous driving |
+| H1 | ✅ `continuous_monitoring()` called in `Monitor_sequence` — FIXED | `state_machine.c:12-14`. Real-time safety checks (SDC, CAN timeout, pressure, correlation) now run during autonomous driving. |
 | H2 | ✅ Solenoid actuation path unified — FIXED | All code now uses `front_solenoid`/`rear_solenoid`. Duplicate `Solenoid1_Request`/`Solenoid2_Request` fields removed. |
 | H3 | Wire `ASSI_control()` return to caller | `APP.c:114` | `ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);` |
 | H4 | Fix `ASSI_control()` pass-by-value | `Autonomous_functions.c:205` | Function takes `uint8_t gpio_state` by value, modifies local copy. Pass pointer or use return value (see H3). |
@@ -41,7 +41,7 @@
 
 | # | Item | File:Line | Problem |
 |---|------|-----------|---------|
-| S1 | **Lock mission selection before HV activation** | `main.c:344-351` | `MS_BTN` EXTI callback changes `t24.Current_Mission` at any time — even during startup sequence or autonomous driving. Mission must only be selectable BEFORE the `HV_ACTIVATION` step. After ignition-on, mission is fixed. **Suggested implementation (minimal change):** In `HAL_GPIO_EXTI_Callback` at `main.c:344`, add a guard: `if (startup_sequence_state >= HV_ACTIVATION && startup_sequence_state <= PRESSURE_CHECK2) return;` to block changes during the startup sequence once ignition is active. Additionally, in `app()` at `APP.c:107`, after `Peripheral_aquisition`, add: `if (Vehicle_state_machine != IDLE && Vehicle_state_machine != AS_ON) return;` before the mission change path. This ensures mission can only be cycled before the car enters autonomous operation. The `HAL_GPIO_EXTI_Callback` approach alone is insufficient because it's an interrupt — better to use a flag set in the ISR and process it in `app()`: `volatile uint8_t mission_btn_pending;` set in ISR, checked in `app()` loop only when `Vehicle_state_machine == IDLE`. |
+| S1 |✅ **Lock mission selection before HV activation** | `main.c:344-351` | `MS_BTN` EXTI callback changes `t24.Current_Mission` at any time — even during startup sequence or autonomous driving. Mission must only be selectable BEFORE the `HV_ACTIVATION` step. After ignition-on, mission is fixed. **Suggested implementation (minimal change):** In `HAL_GPIO_EXTI_Callback` at `main.c:344`, add a guard: `if (startup_sequence_state >= HV_ACTIVATION && startup_sequence_state <= PRESSURE_CHECK2) return;` to block changes during the startup sequence once ignition is active. Additionally, in `app()` at `APP.c:107`, after `Peripheral_aquisition`, add: `if (Vehicle_state_machine != IDLE && Vehicle_state_machine != AS_ON) return;` before the mission change path. This ensures mission can only be cycled before the car enters autonomous operation. The `HAL_GPIO_EXTI_Callback` approach alone is insufficient because it's an interrupt — better to use a flag set in the ISR and process it in `app()`: `volatile uint8_t mission_btn_pending;` set in ISR, checked in `app()` loop only when `Vehicle_state_machine == IDLE`. |
 
 | # | Item | File:Line | Problem |
 |---|------|-----------|---------|

@@ -196,7 +196,7 @@ void continuous_monitoring(uint8_t sdc_status,
 		return;
 	}
 
-	if (!IS_CORRELATED(Front_hydraulic, Front_pneumatic, EBS_FRONT_HYD_GAIN) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic, EBS_FRONT_HYD_GAIN)) {
+	if (!IS_CORRELATED(Front_hydraulic, Front_pneumatic, EBS_FRONT_HYD_GAIN) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic, EBS_REAR_HYD_GAIN_FINAL)) {
 		Vehicle_state_machine = EMERGENCY;
 		return;
 	}

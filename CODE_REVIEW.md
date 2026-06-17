@@ -8,7 +8,7 @@
 
 ## Summary
 
-This is a bare-metal STM32F412 firmware for an autonomous vehicle's airbag control unit. The codebase implements a hierarchical state machine (Vehicle → Autonomous → Startup sub-states), CAN bus communication via a 20-frame DBC ("autonomous_t26"), BLE telemetry via an RN4871 module, EEPROM fault logging, ADC-based pressure/temperature sensing, and an external watchdog. The architecture is well-separated into hardware abstraction, application logic, and HAL initialization layers, and the inclusion of a host-based test harness for the startup sequence is a notable positive. A critical solenoid field mismatch (C1) has been fixed — `initial_sequence()`, `APP.c` init, and CAN telemetry now all write `front_solenoid`/`rear_solenoid`, the same fields that `Peripheral_actuation()` reads to drive GPIO. The duplicate `Solenoid1_Request`/`Solenoid2_Request` fields were removed from `struct car`. Remaining issues include ASSI LEDs not flashing, the monitoring state being dead code, and safety concerns around ISR-driven mission changes, duplicate symbol definitions, and missing bounds checks. This review identifies 17+ specific issues with file:line references.
+This is a bare-metal STM32F412 firmware for an autonomous vehicle's airbag control unit. The codebase implements a hierarchical state machine (Vehicle → Autonomous → Startup sub-states), CAN bus communication via a 20-frame DBC ("autonomous_t26"), BLE telemetry via an RN4871 module, EEPROM fault logging, ADC-based pressure/temperature sensing, and an external watchdog. The architecture is well-separated into hardware abstraction, application logic, and HAL initialization layers, and the inclusion of a host-based test harness for the startup sequence is a notable positive. Two critical issues have been fixed: (C1) solenoid field mismatch — all code now uses `front_solenoid`/`rear_solenoid` consistently, and (C3/formerly C1) `continuous_monitoring()` is now called from `Monitor_sequence`, enabling runtime SDC, CAN timeout, pressure, and hydraulic correlation checks during autonomous driving. Remaining issues include ASSI LEDs not flashing, safety concerns around ISR-driven mission changes, duplicate symbol definitions, and missing bounds checks. This review identifies 15+ specific issues with file:line references.
 
 ---
 
@@ -95,20 +95,19 @@ The return value is discarded. The `ASSI_leds_control_signal` variable is never 
 
 **Fix:** Change to `ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);`
 
-### C3. `continuous_monitoring()` is dead code
+### C3. ✅ `continuous_monitoring()` is dead code — FIXED
 
-`continuous_monitoring()` is defined at `Autonomous_functions.c:152-203` and declared at `Autonomous_functions.h:36-38`. It implements SDC monitoring, CAN timeout checks, pressure range validation, and hydraulic correlation — all critical safety monitoring during autonomous operation.
+**What was wrong:** `continuous_monitoring()` was defined at `Autonomous_functions.c:152-203` but never called. The `Monitor_sequence` case only checked for mission mismatch and AS_STATE_FINISHED. The vehicle had zero runtime safety monitoring during autonomous driving.
 
-However, `Handle_autonomous_state()` at `state_machine.c:11-16` (`Monitor_sequence` case) **never calls** `continuous_monitoring()`. It only checks for mission mismatch and AS_STATE_FINISHED. This means:
+**Fix applied:** `state_machine.c:12-14` now calls:
+```c
+continuous_monitoring(t24.SDC_feedback, NULL,
+    t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,
+    t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
+```
+SDC monitoring, CAN timeout checks (VCU, Jetson, Pressure), pneumatic pressure range validation (6-10 bar), and hydraulic/pneumatic correlation now run on every superloop tick during `Monitor_sequence`.
 
-- CAN timeouts are not checked during driving
-- SDC opening is not detected
-- Pneumatic pressure dropping below 6 bar is not detected
-- Hydraulic/pneumatic uncorrelation is not detected
-
-The vehicle has no runtime safety monitoring during autonomous operation.
-
-**Fix:** Call `continuous_monitoring()` from the `Monitor_sequence` case in `state_machine.c:11-16`.
+Also fixed a bug on `Autonomous_functions.c:199` where the rear correlation check used `EBS_FRONT_HYD_GAIN` instead of `EBS_REAR_HYD_GAIN_FINAL`.
 
 ### C4. Variable defined in header (linker error waiting to happen)
 
@@ -229,13 +228,13 @@ This reads the arrival time of the **current** message being popped (at the tail
 
 ## Safety Concerns
 
-### S1. No runtime monitoring during autonomous driving
+### S1. ~~No runtime monitoring during autonomous driving~~ — FIXED
 
-As described in C3, `continuous_monitoring()` is dead code. During `Monitor_sequence` (which corresponds to AS_STATE_DRIVING), the only checks performed are mission mismatch and the Finished transition. Critical safety checks — CAN timeouts, SDC state, pneumatic pressure, hydraulic correlation — are not performed. If a pressure hose bursts during driving, the ACU will not trigger emergency braking.
+`continuous_monitoring()` is now called at the start of `Monitor_sequence` (`state_machine.c:12-14`). SDC monitoring, CAN timeout detection (via `module_timeout()`), pneumatic pressure range validation, and hydraulic/pneumatic correlation checks all run on every superloop tick during autonomous driving. The vehicle will trigger emergency braking if any check fails.
 
-### S2. `module_timeout()` not called from Monitor_sequence
+### S2. ✅ `module_timeout()` now called from Monitor_sequence — FIXED
 
-Combined with S1 and C3, there is no CAN timeout enforcement during autonomous driving. If the Jetson or VCU stop transmitting (crash, brownout, disconnected cable), `module_timeout()` at `Autonomous_functions.c:269-278` would detect this but is never invoked.
+`continuous_monitoring()` (now invoked in `Monitor_sequence`) calls `module_timeout()` every tick. CAN timeout enforcement (VCU, Jetson, Pressure) is active during autonomous driving.
 
 ### S3. EEPROM logger not initialized
 
@@ -379,13 +378,13 @@ There is no CI/CD pipeline for running the host-based tests. The compilation com
 ### `Core/Src/state_machine.c` (101 lines)
 
 - **Good:** Clean 4-state vehicle SM with nested autonomous SM. Emergency handler properly clears solenoids and disables ignition/WDT.
-- **Critical:** `Monitor_sequence` case at lines 11-16 does not call `continuous_monitoring()` — zero runtime safety checks during autonomous driving.
+- **Critical:** ✅ `continuous_monitoring()` now called at the start of `Monitor_sequence` (line 12-14) — enables SDC, CAN timeout, pressure, and correlation checks during autonomous driving.
 - **Issues:** `as_on_first_time` at line 56 uses a `static` that persists across entries; while functionally correct, explicit state would be cleaner. `Autonomous_state = Finish` at line 15 uses the enum value directly but should check `t24.Autonomous_State == AS_STATE_FINISHED` for clarity (currently works because enum values match).
 
 ### `Core/Src/Autonomous_functions.c` (282 lines)
 
 - **Good:** 8-step startup sequence at lines 29-151 is well-structured with clear macros, timing guards, and error propagation. `ASSI_control()` at lines 205-258 has correct 330 ms flash timing (~3 Hz, within the 2-5 Hz requirement).
-- **Critical:** `continuous_monitoring()` at lines 152-203 never called. `ASSI_control()` modifies local copy (C2). `emergency_blame()` at line 280 is empty.
+- **Critical:** ✅ `continuous_monitoring()` at lines 152-203 now called from `Monitor_sequence`. `ASSI_control()` modifies local copy (C2). `emergency_blame()` at line 280 is empty.
 - **Issues:** `module_timeout()` at lines 269-278 hardcodes 1000 ms for all three modules. `IN_RANGE` macro at line 23 uses strict inequality — pressure exactly at 6.0 or 10.0 bar is rejected (might be intentional).
 
 ### `Core/Src/hardware_abstraction.c` (114 lines)
@@ -431,9 +430,9 @@ There is no CI/CD pipeline for running the host-based tests. The compilation com
 
 1. **✅ Solenoid actuation (C1) — FIXED.** All code now uses `front_solenoid`/`rear_solenoid` consistently.
 
-2. **Fix ASSI LED control** (C2, L7): Two-part fix: (a) Change `APP.c:114` to capture the return value: `ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);` (b) Change `hardware_abstraction.c:56-57` to use `&` instead of `&&`.
+2. **✅ `continuous_monitoring()` wired into `Monitor_sequence` (C3) — FIXED.** Runtime safety checks (SDC, CAN timeout, pressure, correlation) now active during autonomous driving.
 
-3. **Call `continuous_monitoring()` from Monitor_sequence** (C3): Add the call in `state_machine.c:12` before the mission-mismatch check. Without this, the vehicle has zero runtime safety monitoring during autonomous driving.
+3. **Fix ASSI LED control** (C2, L7): Two-part fix: (a) Change `APP.c:114` to capture the return value: `ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);` (b) Change `hardware_abstraction.c:56-57` to use `&` instead of `&&`.
 
 4. **Fix `state_machine.h:18`** (C4): Change `BLE_STATE_MACHINE_t ble_state = BLE_IDLE;` to `extern BLE_STATE_MACHINE_t ble_state;` and move the definition to a `.c` file.
 

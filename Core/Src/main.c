@@ -83,6 +83,7 @@ static uint32_t         ble_tx_tick     = 0;
 
 struct can_queue can_tx_queue[64];
 int can_queue_index = -1;
+uint8_t mission_selector_enable = 0;
 
 CAN_TxHeaderTypeDef can_tx_header;
 
@@ -342,7 +343,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	if (GPIO_Pin == MS_BTN_Pin) {
+	if (GPIO_Pin == MS_BTN_Pin && mission_selector_enable == 1) {
 		t24.Current_Mission++;
 		if (t24.Current_Mission > AUTOCROSS) {
 			t24.Current_Mission = MANUAL;

@@ -14,6 +14,7 @@ struct can_queue can_rx_data;
 
 
 extern uint32_t ADC_Samples[4];
+extern uint8_t mission_selector_enable;
 uint8_t prev_ASMS = 0;
 uint8_t ASSI_leds_control_signal = 0;
 float temporary_temp = 0;
