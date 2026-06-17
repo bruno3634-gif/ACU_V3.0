@@ -1,6 +1,6 @@
 # ACU V3.0 — Code Review
 
-**Project:** ACU (Airbag Control Unit) for Formula Student autonomous vehicle  
+**Project:** ACU (Autonomous Control Unit) for Formula Student autonomous vehicle  
 **MCU:** STM32F412RETx  
 **Toolchain:** STM32CubeIDE / GCC  
 **Review date:** 2026-06-16  
@@ -8,7 +8,7 @@
 
 ## Summary
 
-This is a bare-metal STM32F412 firmware for an autonomous vehicle's airbag control unit. The codebase implements a hierarchical state machine (Vehicle → Autonomous → Startup sub-states), CAN bus communication via a 20-frame DBC ("autonomous_t26"), BLE telemetry via an RN4871 module, EEPROM fault logging, ADC-based pressure/temperature sensing, and an external watchdog. The architecture is well-separated into hardware abstraction, application logic, and HAL initialization layers, and the inclusion of a host-based test harness for the startup sequence is a notable positive. A critical solenoid field mismatch (C1) has been fixed — `initial_sequence()`, `APP.c` init, and CAN telemetry now all write `front_solenoid`/`rear_solenoid`, the same fields that `Peripheral_actuation()` reads to drive GPIO. The duplicate `Solenoid1_Request`/`Solenoid2_Request` fields were removed from `struct car`. Remaining issues include ASSI LEDs not flashing, the monitoring state being dead code, and safety concerns around ISR-driven mission changes, duplicate symbol definitions, and missing bounds checks. This review identifies 17+ specific issues with file:line references.
+This is a bare-metal STM32F412 firmware for an vehicle's autonomous control unit / monitoring. The codebase implements a hierarchical state machine (Vehicle → Autonomous → Startup sub-states), CAN bus communication via a 20-frame DBC ("autonomous_t26"), BLE telemetry via an RN4871 module, EEPROM fault logging, ADC-based pressure/temperature sensing, and an external watchdog. The architecture is well-separated into hardware abstraction, application logic, and HAL initialization layers, and the inclusion of a host-based test harness for the startup sequence is a notable positive. A critical solenoid field mismatch (C1) has been fixed — `initial_sequence()`, `APP.c` init, and CAN telemetry now all write `front_solenoid`/`rear_solenoid`, the same fields that `Peripheral_actuation()` reads to drive GPIO. The duplicate `Solenoid1_Request`/`Solenoid2_Request` fields were removed from `struct car`. Remaining issues include ASSI LEDs not flashing, the monitoring state being dead code, and safety concerns around ISR-driven mission changes, duplicate symbol definitions, and missing bounds checks. This review identifies 17+ specific issues with file:line references.
 
 ---
 
