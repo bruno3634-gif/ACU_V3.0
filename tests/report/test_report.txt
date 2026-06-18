@@ -1,0 +1,1681 @@
+========================================
+ACU V3.0 - Host-Based Test Report
+Date: Thu Jun 18 23:29:40 WEST 2026
+========================================
+
+[test_adc_callbacks]
+  Conditions and Results:
+    ========================================
+     ADC & EXTI Callback Unit Tests
+    ========================================
+    
+    ========================================
+     TEST 1:  ADC computes front pressure
+    ========================================
+    
+    --- TEST 1: ADC computes front pressure ---
+      PASS: Front pressure = 5.0 bar for ADC sample 2048
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     TEST 2:  ADC computes rear pressure
+    ========================================
+    
+    --- TEST 2: ADC computes rear pressure ---
+      PASS: Rear pressure ~ 2.50 bar for ADC sample 1229
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     TEST 3:  ADC temperature zero when VREF=0
+    ========================================
+    
+    --- TEST 3: ADC temperature zero when VREF=0 ---
+      PASS: chip_temp = 0.0 when raw_vref = 0
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     TEST 4:  ADC temperature at 30.0C calibration
+    ========================================
+    
+    --- TEST 4: ADC temperature at 30.0C calibration ---
+      PASS: chip_temp ~ 30.0C at TS_CAL1 with ideal VREF
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     TEST 5:  Full ADC chain updates all outputs
+    ========================================
+    
+    --- TEST 5: Full ADC chain updates all outputs ---
+      PASS: Front pressure = 5.0 bar (full chain)
+      PASS: Rear pressure ~ 2.50 bar (full chain)
+      PASS: chip_temp ~ 30.0C (full chain)
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     TEST 6:  EXTI increments mission
+    ========================================
+    
+    --- TEST 6: EXTI increments mission ---
+      PASS: Current_Mission == SKIDPAD after EXTI from ACCELERATION
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================
+     TEST 7:  EXTI wraps from AUTOCROSS to MANUAL
+    ========================================
+    
+    --- TEST 7: EXTI wraps from AUTOCROSS to MANUAL ---
+      PASS: Current_Mission wraps from AUTOCROSS to MANUAL
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================
+     TEST 8:  EXTI ignored when selector disabled
+    ========================================
+    
+    --- TEST 8: EXTI ignored when selector disabled ---
+      PASS: Current_Mission unchanged when selector disabled
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================
+     TEST 9:  EXTI ignores other GPIO pins
+    ========================================
+    
+    --- TEST 9: EXTI ignores other GPIO pins ---
+      PASS: Current_Mission unchanged for non-MS_BTN pin
+    
+      +++ TEST 9 PASSED +++
+    
+    ========================================
+     TEST 10: EXTI full mission cycle
+    ========================================
+    
+    --- TEST 10: EXTI full mission cycle ---
+      PASS: After press 1: ACCELERATION
+      PASS: After press 2: SKIDPAD
+      PASS: After press 3: TRACKDRIVE
+      PASS: After press 4: EBS_TEST
+      PASS: After press 5: INSPECTION
+      PASS: After press 6: AUTOCROSS
+      PASS: After press 7: MANUAL (wrap)
+      PASS: After press 8: ACCELERATION (second lap)
+    
+      +++ TEST 10 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 19
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
+[test_autonomous_functions]
+  Conditions and Results:
+    ========================================
+      Autonomous Functions Unit Tests
+    ========================================
+    
+    --- TEST 1: check_timeout basic ---
+      PASS: check_timeout(0,100) @ t=50 returns false
+      PASS: check_timeout(0,100) @ t=101 returns true
+      PASS: check_timeout(0,100) @ t=100 (exactly limit) returns false (strict >)
+    
+    --- TEST 2: ASSI_control OFF state ---
+      PASS: ASSI_control(0xFF, OFF) returns 0
+      PASS: ASSI_control(0x00, OFF) returns 0
+    
+    --- TEST 3: ASSI_control READY state ---
+      PASS: ASSI_control(0, READY) returns 0b00000001 (yellow continuous)
+      PASS: ASSI_control(0xFF, READY) also returns 0b00000001
+    
+    --- TEST 4: ASSI_control DRIVING flashing ---
+      Call 1 @ t=0: output=0
+      Call 2 @ t=331: output=1
+      PASS: Second call @ t=331 toggled bit 0 on
+      Call 3 @ t=662: output=0
+      PASS: Third call @ t=662 toggled bit 0 back to 0
+      PASS: ASSI_control DRIVING toggles at ~330ms intervals
+    
+    --- TEST 5: ASSI_control EMERGENCY flashing ---
+      Call 1 @ t=0: output=0
+      Call 2 @ t=331: output=2
+      PASS: Second call @ t=331 toggled bit 1 on
+      Call 3 @ t=662: output=0
+      PASS: Third call @ t=662 toggled bit 1 back to 0
+      PASS: ASSI_control EMERGENCY toggles at ~330ms intervals
+    
+    --- TEST 6: ASSI_control FINISHED state ---
+      PASS: ASSI_control(0, FINISHED) returns 0b00000010 (blue continuous)
+      PASS: ASSI_control(0xFF, FINISHED) also returns 0b00000010
+    
+    --- TEST 7: module_timeout all within range ---
+      PASS: module_timeout() returns NO_TIMEOUT when all timestamps are current
+    
+    --- TEST 8: module_timeout VCU timeout ---
+      PASS: module_timeout() returns VCU_TIMEOUT when VCU_LAST_TX expired
+    
+    --- TEST 9: module_timeout JETSON timeout ---
+      PASS: module_timeout() returns JETSON_TIMEOUT when JETSON_LAST_TX expired
+    
+    --- TEST 10: module_timeout PRESSURE timeout ---
+      PASS: module_timeout() returns PRESSURE_TIMEOUT when REAR_PRESSURE_LAST_TX expired
+    
+    --- TEST 11: module_timeout DIR timeout ---
+      PASS: module_timeout() returns DIR_TIMEOUT when DIR_ACTUATOR_LAST_TX expired
+    
+    --- TEST 12: module_timeout RES timeout ---
+      PASS: module_timeout() returns RES_TIMEOUT when RES_LAST_TX expired
+    
+    --- TEST 13: continuous_monitoring SDC open ---
+      PASS: SDC open (sdc_status=0) triggers EMERGENCY
+    
+    --- TEST 14: continuous_monitoring pneumatic out of range ---
+      PASS: Rear_pneumatic=11.0f (>10) triggers EMERGENCY
+    
+    --- TEST 15: continuous_monitoring correlation failure ---
+      PASS: Front_hydraulic=0.0f (not correlated with pneu=7.5, gain=9) triggers EMERGENCY
+    
+    --- TEST 16: continuous_monitoring normal passes ---
+      PASS: All parameters valid: Vehicle_state_machine unchanged (no EMERGENCY)
+      PASS: Emergency_cause remains NONE when all checks pass
+    
+    ========================================
+      Results: 24 passed, 0 failed out of 24
+    ========================================
+      ALL TESTS PASSED
+  Overall: PASS (exit=0)
+  ---
+
+[test_autonomous_t26]
+  Conditions and Results:
+    === autonomous_t26 CAN codec unit tests ===
+    
+    TEST 1: ACU message round-trip...
+      -> PASS
+    TEST 2: ACU buffer too small (size=5)...
+      -> PASS
+    TEST 3: AQT7 rear brake pressure round-trip...
+      -> PASS
+    TEST 4: VCU_IGN_R2_D round-trip...
+      -> PASS
+    TEST 5: VCU_RPM round-trip (3000 RPM)...
+      -> PASS
+    TEST 6: ASF_SIGNALS round-trip (4 fields)...
+      -> PASS
+    TEST 7: ASF_SIGNALS buffer overflow (size=2)...
+      -> PASS
+    TEST 8: init functions zero structs...
+      -> PASS
+    TEST 9: ACU signal encode/decode (acu_cpu_temp=42)...
+      -> PASS
+    
+    === Results: 9 / 9 tests passed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_ble_config]
+  Conditions and Results:
+    
+    === BLE Module Configuration Test Harness ===
+    
+    === TEST 1: Initial state is idle (not done) ===
+      PASS: is_done returns 0 before any operation
+      PASS: internal state is 0 (idle) on init
+      PASS: Initial state correctly idle
+    === TEST 2: Start transitions to state 1 ===
+      PASS: state should be 1 (ENTER_CMD) after start
+      PASS: index should be 0 after start
+      PASS: tick should be captured from HAL_GetTick()
+      PASS: Start correctly transitions to ENTER_CMD state
+    === TEST 3: First tick sends "$$$" and transitions to state 2 ===
+      PASS: state should be 2 (WAIT_ENTER) after first tick
+      PASS: exactly one UART transmit occurred
+      PASS: transmitted 3 bytes ($$$)
+      PASS: transmitted data is "$$$"
+      PASS: First tick sent "$$$" and advanced to WAIT_ENTER
+    === TEST 4: Wait in state 2 before 500ms elapses ===
+      PASS: state should still be 2 (WAIT_ENTER) before 500ms
+      PASS: no additional UART transmit occurred (still 1 from $$$)
+      PASS: state should still be 2 at 200ms
+      PASS: State 2 correctly waits until 500ms elapses
+    === TEST 5: After 500ms in state 2, transition to state 3 ===
+      PASS: state should be 3 (SEND_CMD) after 500ms wait
+      PASS: index should be reset to 0 after WAIT_ENTER completes
+      PASS: Wait completed, transitioned to SEND_CMD with index=0
+    === TEST 6: Send first configuration command ===
+      PASS: state should be 4 (WAIT_CMD) after sending command
+      PASS: two UART transmits total ($$$ + cmd0)
+      PASS: transmitted length matches first command
+      PASS: transmitted data matches first command string
+      PASS: First command "SS,E18A0001-1E11-4F63-A23A-2D84F600A5D1
+    " sent, state -> WAIT_CMD
+    === TEST 7: Full configuration cycle ===
+      PASS: after start -> state 1
+      PASS: after tick -> state 2 (WAIT_ENTER)
+      PASS: transmit #1 = $$$
+      PASS: after 500ms -> state 3 (SEND_CMD)
+      PASS: index reset to 0
+      PASS: state is 4 (WAIT_CMD) after sending command
+      PASS: transmit count after cmd 0 = 2
+      PASS: cmd 0 length = 41
+      PASS: cmd 0 data matches expected string
+      PASS: after wait -> state 3 for next command
+      PASS: index incremented to 1
+      PASS: state is 4 (WAIT_CMD) after sending command
+      PASS: transmit count after cmd 1 = 3
+      PASS: cmd 1 length = 41
+      PASS: cmd 1 data matches expected string
+      PASS: after wait -> state 3 for next command
+      PASS: index incremented to 2
+      PASS: state is 4 (WAIT_CMD) after sending command
+      PASS: transmit count after cmd 2 = 4
+      PASS: cmd 2 length = 9
+      PASS: cmd 2 data matches expected string
+      PASS: after wait -> state 3 for next command
+      PASS: index incremented to 3
+      PASS: state is 4 (WAIT_CMD) after sending command
+      PASS: transmit count after cmd 3 = 5
+      PASS: cmd 3 length = 7
+      PASS: cmd 3 data matches expected string
+      PASS: after wait -> state 3 for next command
+      PASS: index incremented to 4
+      PASS: state is 4 (WAIT_CMD) after sending command
+      PASS: transmit count after cmd 4 = 6
+      PASS: cmd 4 length = 5
+      PASS: cmd 4 data matches expected string
+      PASS: after last wait -> state 3 (SEND_CMD)
+      PASS: index == BLE_CFG_NUM_CMDS (5)
+      PASS: final state should be 6 (done)
+      PASS: total transmits = 6 ($$$ + 5 commands)
+      PASS: Full cycle completed with 6 transmits, state=6
+    === TEST 8: is_done returns true after full cycle ===
+      PASS: is_done returns 1 after full cycle completes
+      PASS: internal state is 6 (done)
+      PASS: is_done correctly reports configuration complete
+    
+    === Results: 8 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_can_queue]
+  Conditions and Results:
+    ========================================
+     CAN Queue (array-based TX) Unit Tests
+    ========================================
+    
+    ========================================
+     TEST 1: Empty queue does nothing
+    ========================================
+    
+    --- TEST 1: Empty queue does nothing ---
+      PASS: can_queue_index == -1 initially
+      PASS: HAL_CAN_AddTxMessage NOT called on empty queue
+      PASS: can_queue_index still -1 after no-op
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     TEST 2: Add one message
+    ========================================
+    
+    --- TEST 2: Add one message ---
+      PASS: can_queue_index == 0 after first add
+      PASS: mailbox stored correctly
+      PASS: StdId stored correctly
+      PASS: DLC stored correctly
+      PASS: data[0] == 0xAA
+      PASS: data[7] == 0x22
+      PASS: drain sent 1 message
+      PASS: queue empty after drain
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     TEST 3: Add two messages
+    ========================================
+    
+    --- TEST 3: Add two messages ---
+      PASS: can_queue_index == 1 after two adds
+      PASS: msg0 StdId == 0x100
+      PASS: msg1 StdId == 0x200
+      PASS: msg0 data[0] == 1
+      PASS: msg1 data[0] == 9
+      PASS: msg0 mailbox == 0
+      PASS: msg1 mailbox == 1
+      PASS: drain sent 2 messages
+      PASS: queue empty after drain
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     TEST 4: handle_can_tx sends first message
+    ========================================
+    
+    --- TEST 4: handle_can_tx sends first message ---
+      PASS: can_queue_index == 0 after add
+      PASS: HAL_CAN_AddTxMessage called once
+      PASS: sent message has StdId == 0x555
+      PASS: sent data[0] == 10
+      PASS: sent data[7] == 80
+      PASS: queue reset after draining single message
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     TEST 5: handle_can_tx drains all messages
+    ========================================
+    
+    --- TEST 5: handle_can_tx drains all messages ---
+      PASS: can_queue_index == 2 after 3 adds
+      PASS: call count == 1
+      PASS: call count == 2
+      PASS: call count == 3
+      PASS: total 3 HAL calls made
+      PASS: queue index reset to -1 after full drain
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     TEST 6: No mailboxes prevents send
+    ========================================
+    
+    --- TEST 6: No mailboxes prevents send ---
+      PASS: one message queued
+      PASS: no HAL_CAN_AddTxMessage call when mailboxes == 0
+      PASS: can_queue_index unchanged (message not sent)
+      PASS: drain succeeded after restoring mailboxes
+      PASS: queue empty after drain
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================
+     TEST 7: Queue overflow behavior
+    ========================================
+    
+    --- TEST 7: Queue overflow behavior ---
+      PASS: can_queue_index == 63 after 64 adds (last valid index)
+      PASS: can_queue_index == 64 after 65th add (no crash)
+      PASS: queue fully drained after overflow
+      PASS: all 65 messages transmitted
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================
+     TEST 8: Data integrity through queue
+    ========================================
+    
+    --- TEST 8: Data integrity through queue ---
+      PASS: 3 messages queued
+      PASS: one message sent
+      PASS: first message sent has StdId == 0x100
+      PASS: first message data[0] == 0x10
+      PASS: first message data[3] == 0x40
+      PASS: first message data[7] == 0x80
+      PASS: all 3 messages sent
+      PASS: queue empty after drain
+      PASS: last message sent has StdId == 0x300
+      PASS: last message data[0] == 0xDE
+      PASS: last message data[3] == 0xEF
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 52
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
+[test_ema_filter]
+  Conditions and Results:
+    
+    === EMA Filter Test Harness ===
+    
+    === TEST 1: First update returns input directly ===
+      PASS: First update with input 42.0 returned 42.000000
+    === TEST 2: Subsequent updates apply EMA formula ===
+      update(10.0) = 10.000000  (expected 10.0)
+      update(20.0) = 15.000000  (expected 15.0)
+      PASS: EMA formula applied correctly
+    === TEST 3: Alpha = 1.0 gives passthrough ===
+      PASS: Alpha=1.0 passes all inputs through unchanged
+    === TEST 4: Alpha = 0.0 holds last value ===
+      PASS: Alpha=0.0 holds initial value across all subsequent updates
+    === TEST 5: Multiple values converge without overshoot ===
+      update( 0) = 0.000000  (expected 0.000000)
+      update(10) = 2.000000  (expected 2.000000)
+      update(20) = 5.600000  (expected 5.600000)
+      update(30) = 10.480000  (expected 10.480000)
+      update(40) = 16.383999  (expected 16.384001)
+      PASS: EMA converges correctly without overshoot
+    
+    === Results: 5 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_initial_sequence]
+  Conditions and Results:
+    
+    === Initial Sequence Test Harness ===
+    
+    === TEST 1: Normal successful startup ===
+      PASS: Normal startup completed all 8 stages correctly
+    === TEST 2: WDT timeout ===
+      PASS: WDT timeout correctly triggers EMERGENCY
+    === TEST 3: Pneumatic out of range -> immediate error ===
+      PASS: Pneumatic out of range correctly triggers EMERGENCY
+    === TEST 4: Solenoid front timeout ===
+      PASS: Solenoid front timeout correctly triggers EMERGENCY
+    === TEST 5: Handle_autonomous_state -> Monitor_sequence ===
+      PASS: Handle_autonomous_state correctly transitions to Monitor_sequence
+    
+    === Results: 5 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_logger]
+  Conditions and Results:
+    ========================================
+     EEPROM Circular Buffer Logger Unit Tests
+    ========================================
+    
+    ========================================
+     TEST 1: Init creates fresh log
+    ========================================
+    
+    --- TEST 1: Init creates fresh log ---
+      PASS: eeprom_log_init returns true on fresh EEPROM
+      PASS: Read back header after init
+      PASS: magic == LOG_MAGIC after init
+      PASS: head == 0 after init
+      PASS: tail == 0 after init
+      PASS: count == 0 after init
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     TEST 2: Init detects existing log
+    ========================================
+    
+    --- TEST 2: Init detects existing log ---
+      PASS: first eeprom_log_init succeeds
+      PASS: second eeprom_log_init returns true
+      PASS: magic preserved
+      PASS: head unchanged
+      PASS: tail unchanged
+      PASS: count unchanged
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     TEST 3: Write and read back
+    ========================================
+    
+    --- TEST 3: Write and read back ---
+      PASS: eeprom_log_write returns true
+      PASS: eeprom_log_read(0) returns true
+      PASS: single entry: can_hw_state == 42
+      PASS: single entry: timestamp == 1042
+      PASS: single entry: pc == 0x0800002A
+      PASS: single entry: lr == 0x0800102A
+      PASS: single entry: psr == 0x0100002A
+      PASS: single entry: as_state == 3
+      PASS: single entry: mission == 0
+      PASS: single entry: emergency_cause == 2
+      PASS: single entry: startup_state == 6
+      PASS: single entry: front_pressure_pneumatic == 11.7
+      PASS: single entry: rear_pressure_pneumatic == 12.2
+      PASS: single entry: front_pressure_hydraulic == 86.0
+      PASS: single entry: rear_pressure_hydraulic == 91.0
+      PASS: single entry: asms == 0
+      PASS: single entry: sdc_feedback == 1
+      PASS: eeprom_log_count returns true
+      PASS: count == 1 after one write
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     TEST 4: Write multiple entries
+    ========================================
+    
+    --- TEST 4: Write multiple entries ---
+      PASS: eeprom_log_write(0) returned true
+      PASS: eeprom_log_write(1) returned true
+      PASS: eeprom_log_write(2) returned true
+      PASS: eeprom_log_write(3) returned true
+      PASS: eeprom_log_write(4) returned true
+      PASS: eeprom_log_read(0) returned true
+      PASS: entry 0: can_hw_state == 100
+      PASS: entry 0: timestamp == 1100
+      PASS: entry 0: pc == 0x08000064
+      PASS: entry 0: lr == 0x08001064
+      PASS: entry 0: psr == 0x01000064
+      PASS: entry 0: as_state == 1
+      PASS: entry 0: mission == 2
+      PASS: entry 0: emergency_cause == 0
+      PASS: entry 0: startup_state == 1
+      PASS: entry 0: front_pressure_pneumatic == 17.5
+      PASS: entry 0: rear_pressure_pneumatic == 18.0
+      PASS: entry 0: front_pressure_hydraulic == 115.0
+      PASS: entry 0: rear_pressure_hydraulic == 120.0
+      PASS: entry 0: asms == 0
+      PASS: entry 0: sdc_feedback == 0
+      PASS: eeprom_log_read(1) returned true
+      PASS: entry 1: can_hw_state == 101
+      PASS: entry 1: timestamp == 1101
+      PASS: entry 1: pc == 0x08000065
+      PASS: entry 1: lr == 0x08001065
+      PASS: entry 1: psr == 0x01000065
+      PASS: entry 1: as_state == 2
+      PASS: entry 1: mission == 3
+      PASS: entry 1: emergency_cause == 1
+      PASS: entry 1: startup_state == 2
+      PASS: entry 1: front_pressure_pneumatic == 17.6
+      PASS: entry 1: rear_pressure_pneumatic == 18.1
+      PASS: entry 1: front_pressure_hydraulic == 115.5
+      PASS: entry 1: rear_pressure_hydraulic == 120.5
+      PASS: entry 1: asms == 1
+      PASS: entry 1: sdc_feedback == 0
+      PASS: eeprom_log_read(2) returned true
+      PASS: entry 2: can_hw_state == 102
+      PASS: entry 2: timestamp == 1102
+      PASS: entry 2: pc == 0x08000066
+      PASS: entry 2: lr == 0x08001066
+      PASS: entry 2: psr == 0x01000066
+      PASS: entry 2: as_state == 3
+      PASS: entry 2: mission == 4
+      PASS: entry 2: emergency_cause == 2
+      PASS: entry 2: startup_state == 3
+      PASS: entry 2: front_pressure_pneumatic == 17.7
+      PASS: entry 2: rear_pressure_pneumatic == 18.2
+      PASS: entry 2: front_pressure_hydraulic == 116.0
+      PASS: entry 2: rear_pressure_hydraulic == 121.0
+      PASS: entry 2: asms == 0
+      PASS: entry 2: sdc_feedback == 1
+      PASS: eeprom_log_read(3) returned true
+      PASS: entry 3: can_hw_state == 103
+      PASS: entry 3: timestamp == 1103
+      PASS: entry 3: pc == 0x08000067
+      PASS: entry 3: lr == 0x08001067
+      PASS: entry 3: psr == 0x01000067
+      PASS: entry 3: as_state == 4
+      PASS: entry 3: mission == 5
+      PASS: entry 3: emergency_cause == 3
+      PASS: entry 3: startup_state == 4
+      PASS: entry 3: front_pressure_pneumatic == 17.8
+      PASS: entry 3: rear_pressure_pneumatic == 18.3
+      PASS: entry 3: front_pressure_hydraulic == 116.5
+      PASS: entry 3: rear_pressure_hydraulic == 121.5
+      PASS: entry 3: asms == 1
+      PASS: entry 3: sdc_feedback == 1
+      PASS: eeprom_log_read(4) returned true
+      PASS: entry 4: can_hw_state == 104
+      PASS: entry 4: timestamp == 1104
+      PASS: entry 4: pc == 0x08000068
+      PASS: entry 4: lr == 0x08001068
+      PASS: entry 4: psr == 0x01000068
+      PASS: entry 4: as_state == 5
+      PASS: entry 4: mission == 6
+      PASS: entry 4: emergency_cause == 4
+      PASS: entry 4: startup_state == 5
+      PASS: entry 4: front_pressure_pneumatic == 17.9
+      PASS: entry 4: rear_pressure_pneumatic == 18.4
+      PASS: entry 4: front_pressure_hydraulic == 117.0
+      PASS: entry 4: rear_pressure_hydraulic == 122.0
+      PASS: entry 4: asms == 0
+      PASS: entry 4: sdc_feedback == 0
+      PASS: count == 5 after five writes
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     TEST 5: Circular overwrite
+    ========================================
+    
+    --- TEST 5: Circular overwrite ---
+      PASS: eeprom_log_write(0) returned true
+      PASS: eeprom_log_write(1) returned true
+      PASS: eeprom_log_write(2) returned true
+      PASS: eeprom_log_write(3) returned true
+      PASS: eeprom_log_write(4) returned true
+      PASS: eeprom_log_write(5) returned true
+      PASS: eeprom_log_write(6) returned true
+      PASS: eeprom_log_write(7) returned true
+      PASS: eeprom_log_write(8) returned true
+      PASS: eeprom_log_write(9) returned true
+      PASS: eeprom_log_write(10) returned true
+      PASS: eeprom_log_write(11) returned true
+      PASS: eeprom_log_write(12) returned true
+      PASS: eeprom_log_write(13) returned true
+      PASS: eeprom_log_write(14) returned true
+      PASS: eeprom_log_write(15) returned true
+      PASS: eeprom_log_write(16) returned true
+      PASS: eeprom_log_write(17) returned true
+      PASS: eeprom_log_write(18) returned true
+      PASS: eeprom_log_write(19) returned true
+      PASS: eeprom_log_write(20) returned true
+      PASS: count == LOG_MAX_ENTRIES after overwrite
+      PASS: eeprom_log_read(0) succeeds after overwrite
+      PASS: index 0 returns oldest surviving entry (write #2)
+      PASS: eeprom_log_read(18) succeeds after overwrite
+      PASS: index 18 returns newest entry (write #20)
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     TEST 6: Read out-of-range
+    ========================================
+    
+    --- TEST 6: Read out-of-range ---
+      PASS: eeprom_log_read(5) returns false when count < 5
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================
+     TEST 7: Count function
+    ========================================
+    
+    --- TEST 7: Count function ---
+      PASS: eeprom_log_count returns true
+      PASS: count == 7 after seven writes
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================
+     TEST 8: Clear function
+    ========================================
+    
+    --- TEST 8: Clear function ---
+      PASS: count == 4 before clear
+      PASS: eeprom_log_clear returns true
+      PASS: eeprom_log_count returns true after clear
+      PASS: count == 0 after clear
+      PASS: magic preserved after clear
+      PASS: can write again after clear
+      PASS: can read after clear+write
+      PASS: re-written entry data intact
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 154
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
+[test_ring_buffer]
+  Conditions and Results:
+    ========================================
+     CAN Ring Buffer Unit Tests
+    ========================================
+    
+    ========================================
+     TEST 1: Init sets all to zero
+    ========================================
+    
+    --- TEST 1: Init sets all to zero ---
+      PASS: head == 0 after init
+      PASS: tail == 0 after init
+      PASS: counter == 0 after init
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     TEST 2: Push increments counter
+    ========================================
+    
+    --- TEST 2: Push increments counter ---
+      PASS: counter == 1 after one push
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     TEST 3: Push and RX-pop returns same data
+    ========================================
+    
+    --- TEST 3: Push and RX-pop returns same data ---
+      PASS: StdId matches after RX pop
+      PASS: data[0] == 10
+      PASS: data[1] == 20
+      PASS: data[2] == 30
+      PASS: data[3] == 40
+      PASS: data[4] == 50
+      PASS: data[5] == 60
+      PASS: data[6] == 70
+      PASS: data[7] == 80
+      PASS: counter back to 0 after pop
+      PASS: head == tail when empty
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     TEST 4: Multiple pushes without pop
+    ========================================
+    
+    --- TEST 4: Multiple pushes without pop ---
+      PASS: counter == 5 after 5 pushes
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     TEST 5: Full buffer drops data
+    ========================================
+    
+    --- TEST 5: Full buffer drops data ---
+      PASS: counter == MAX_SIZE after overflow pushes
+      PASS: head == tail when full (wrapped around)
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     TEST 6: Empty buffer pop does nothing
+    ========================================
+    
+    --- TEST 6: Empty buffer pop does nothing ---
+      PASS: counter still 0 after pop on empty
+      PASS: counter still 0 after TX-pop on empty
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================
+     TEST 7: Wrap-around behavior
+    ========================================
+    
+    --- TEST 7: Wrap-around behavior ---
+      PASS: counter == MAX_SIZE after fill
+      PASS: head wrapped to 0 after fill
+      PASS: pop 0 StdId == 0
+      PASS: pop 1 StdId == 1
+      PASS: pop 2 StdId == 2
+      PASS: pop 3 StdId == 3
+      PASS: pop 4 StdId == 4
+      PASS: pop 5 StdId == 5
+      PASS: pop 6 StdId == 6
+      PASS: pop 7 StdId == 7
+      PASS: pop 8 StdId == 8
+      PASS: pop 9 StdId == 9
+      PASS: pop 10 StdId == 10
+      PASS: pop 11 StdId == 11
+      PASS: pop 12 StdId == 12
+      PASS: pop 13 StdId == 13
+      PASS: pop 14 StdId == 14
+      PASS: pop 15 StdId == 15
+      PASS: pop 16 StdId == 16
+      PASS: pop 17 StdId == 17
+      PASS: pop 18 StdId == 18
+      PASS: pop 19 StdId == 19
+      PASS: pop 20 StdId == 20
+      PASS: pop 21 StdId == 21
+      PASS: pop 22 StdId == 22
+      PASS: pop 23 StdId == 23
+      PASS: pop 24 StdId == 24
+      PASS: pop 25 StdId == 25
+      PASS: pop 26 StdId == 26
+      PASS: pop 27 StdId == 27
+      PASS: pop 28 StdId == 28
+      PASS: pop 29 StdId == 29
+      PASS: pop 30 StdId == 30
+      PASS: pop 31 StdId == 31
+      PASS: pop 32 StdId == 32
+      PASS: pop 33 StdId == 33
+      PASS: pop 34 StdId == 34
+      PASS: pop 35 StdId == 35
+      PASS: pop 36 StdId == 36
+      PASS: pop 37 StdId == 37
+      PASS: pop 38 StdId == 38
+      PASS: pop 39 StdId == 39
+      PASS: pop 40 StdId == 40
+      PASS: pop 41 StdId == 41
+      PASS: pop 42 StdId == 42
+      PASS: pop 43 StdId == 43
+      PASS: pop 44 StdId == 44
+      PASS: pop 45 StdId == 45
+      PASS: pop 46 StdId == 46
+      PASS: pop 47 StdId == 47
+      PASS: pop 48 StdId == 48
+      PASS: pop 49 StdId == 49
+      PASS: pop 50 StdId == 50
+      PASS: pop 51 StdId == 51
+      PASS: pop 52 StdId == 52
+      PASS: pop 53 StdId == 53
+      PASS: pop 54 StdId == 54
+      PASS: pop 55 StdId == 55
+      PASS: pop 56 StdId == 56
+      PASS: pop 57 StdId == 57
+      PASS: pop 58 StdId == 58
+      PASS: pop 59 StdId == 59
+      PASS: pop 60 StdId == 60
+      PASS: pop 61 StdId == 61
+      PASS: pop 62 StdId == 62
+      PASS: pop 63 StdId == 63
+      PASS: pop 64 StdId == 64
+      PASS: pop 65 StdId == 65
+      PASS: pop 66 StdId == 66
+      PASS: pop 67 StdId == 67
+      PASS: pop 68 StdId == 68
+      PASS: pop 69 StdId == 69
+      PASS: pop 70 StdId == 70
+      PASS: pop 71 StdId == 71
+      PASS: pop 72 StdId == 72
+      PASS: pop 73 StdId == 73
+      PASS: pop 74 StdId == 74
+      PASS: pop 75 StdId == 75
+      PASS: pop 76 StdId == 76
+      PASS: pop 77 StdId == 77
+      PASS: pop 78 StdId == 78
+      PASS: pop 79 StdId == 79
+      PASS: pop 80 StdId == 80
+      PASS: pop 81 StdId == 81
+      PASS: pop 82 StdId == 82
+      PASS: pop 83 StdId == 83
+      PASS: pop 84 StdId == 84
+      PASS: pop 85 StdId == 85
+      PASS: pop 86 StdId == 86
+      PASS: pop 87 StdId == 87
+      PASS: pop 88 StdId == 88
+      PASS: pop 89 StdId == 89
+      PASS: pop 90 StdId == 90
+      PASS: pop 91 StdId == 91
+      PASS: pop 92 StdId == 92
+      PASS: pop 93 StdId == 93
+      PASS: pop 94 StdId == 94
+      PASS: pop 95 StdId == 95
+      PASS: pop 96 StdId == 96
+      PASS: pop 97 StdId == 97
+      PASS: pop 98 StdId == 98
+      PASS: pop 99 StdId == 99
+      PASS: pop 100 StdId == 100
+      PASS: pop 101 StdId == 101
+      PASS: pop 102 StdId == 102
+      PASS: pop 103 StdId == 103
+      PASS: pop 104 StdId == 104
+      PASS: pop 105 StdId == 105
+      PASS: pop 106 StdId == 106
+      PASS: pop 107 StdId == 107
+      PASS: pop 108 StdId == 108
+      PASS: pop 109 StdId == 109
+      PASS: pop 110 StdId == 110
+      PASS: pop 111 StdId == 111
+      PASS: pop 112 StdId == 112
+      PASS: pop 113 StdId == 113
+      PASS: pop 114 StdId == 114
+      PASS: pop 115 StdId == 115
+      PASS: pop 116 StdId == 116
+      PASS: pop 117 StdId == 117
+      PASS: pop 118 StdId == 118
+      PASS: pop 119 StdId == 119
+      PASS: pop 120 StdId == 120
+      PASS: pop 121 StdId == 121
+      PASS: pop 122 StdId == 122
+      PASS: pop 123 StdId == 123
+      PASS: pop 124 StdId == 124
+      PASS: pop 125 StdId == 125
+      PASS: pop 126 StdId == 126
+      PASS: pop 127 StdId == 127
+      PASS: pop 128 StdId == 128
+      PASS: pop 129 StdId == 129
+      PASS: pop 130 StdId == 130
+      PASS: pop 131 StdId == 131
+      PASS: pop 132 StdId == 132
+      PASS: pop 133 StdId == 133
+      PASS: pop 134 StdId == 134
+      PASS: pop 135 StdId == 135
+      PASS: pop 136 StdId == 136
+      PASS: pop 137 StdId == 137
+      PASS: pop 138 StdId == 138
+      PASS: pop 139 StdId == 139
+      PASS: pop 140 StdId == 140
+      PASS: pop 141 StdId == 141
+      PASS: pop 142 StdId == 142
+      PASS: pop 143 StdId == 143
+      PASS: pop 144 StdId == 144
+      PASS: pop 145 StdId == 145
+      PASS: pop 146 StdId == 146
+      PASS: pop 147 StdId == 147
+      PASS: pop 148 StdId == 148
+      PASS: pop 149 StdId == 149
+      PASS: pop 150 StdId == 150
+      PASS: pop 151 StdId == 151
+      PASS: pop 152 StdId == 152
+      PASS: pop 153 StdId == 153
+      PASS: pop 154 StdId == 154
+      PASS: pop 155 StdId == 155
+      PASS: pop 156 StdId == 156
+      PASS: pop 157 StdId == 157
+      PASS: pop 158 StdId == 158
+      PASS: pop 159 StdId == 159
+      PASS: pop 160 StdId == 160
+      PASS: pop 161 StdId == 161
+      PASS: pop 162 StdId == 162
+      PASS: pop 163 StdId == 163
+      PASS: pop 164 StdId == 164
+      PASS: pop 165 StdId == 165
+      PASS: pop 166 StdId == 166
+      PASS: pop 167 StdId == 167
+      PASS: pop 168 StdId == 168
+      PASS: pop 169 StdId == 169
+      PASS: pop 170 StdId == 170
+      PASS: pop 171 StdId == 171
+      PASS: pop 172 StdId == 172
+      PASS: pop 173 StdId == 173
+      PASS: pop 174 StdId == 174
+      PASS: pop 175 StdId == 175
+      PASS: pop 176 StdId == 176
+      PASS: pop 177 StdId == 177
+      PASS: pop 178 StdId == 178
+      PASS: pop 179 StdId == 179
+      PASS: pop 180 StdId == 180
+      PASS: pop 181 StdId == 181
+      PASS: pop 182 StdId == 182
+      PASS: pop 183 StdId == 183
+      PASS: pop 184 StdId == 184
+      PASS: pop 185 StdId == 185
+      PASS: pop 186 StdId == 186
+      PASS: pop 187 StdId == 187
+      PASS: pop 188 StdId == 188
+      PASS: pop 189 StdId == 189
+      PASS: pop 190 StdId == 190
+      PASS: pop 191 StdId == 191
+      PASS: pop 192 StdId == 192
+      PASS: pop 193 StdId == 193
+      PASS: pop 194 StdId == 194
+      PASS: pop 195 StdId == 195
+      PASS: pop 196 StdId == 196
+      PASS: pop 197 StdId == 197
+      PASS: pop 198 StdId == 198
+      PASS: pop 199 StdId == 199
+      PASS: pop 200 StdId == 200
+      PASS: pop 201 StdId == 201
+      PASS: pop 202 StdId == 202
+      PASS: pop 203 StdId == 203
+      PASS: pop 204 StdId == 204
+      PASS: pop 205 StdId == 205
+      PASS: pop 206 StdId == 206
+      PASS: pop 207 StdId == 207
+      PASS: pop 208 StdId == 208
+      PASS: pop 209 StdId == 209
+      PASS: pop 210 StdId == 210
+      PASS: pop 211 StdId == 211
+      PASS: pop 212 StdId == 212
+      PASS: pop 213 StdId == 213
+      PASS: pop 214 StdId == 214
+      PASS: pop 215 StdId == 215
+      PASS: pop 216 StdId == 216
+      PASS: pop 217 StdId == 217
+      PASS: pop 218 StdId == 218
+      PASS: pop 219 StdId == 219
+      PASS: pop 220 StdId == 220
+      PASS: pop 221 StdId == 221
+      PASS: pop 222 StdId == 222
+      PASS: pop 223 StdId == 223
+      PASS: pop 224 StdId == 224
+      PASS: pop 225 StdId == 225
+      PASS: pop 226 StdId == 226
+      PASS: pop 227 StdId == 227
+      PASS: pop 228 StdId == 228
+      PASS: pop 229 StdId == 229
+      PASS: pop 230 StdId == 230
+      PASS: pop 231 StdId == 231
+      PASS: pop 232 StdId == 232
+      PASS: pop 233 StdId == 233
+      PASS: pop 234 StdId == 234
+      PASS: pop 235 StdId == 235
+      PASS: pop 236 StdId == 236
+      PASS: pop 237 StdId == 237
+      PASS: pop 238 StdId == 238
+      PASS: pop 239 StdId == 239
+      PASS: pop 240 StdId == 240
+      PASS: pop 241 StdId == 241
+      PASS: pop 242 StdId == 242
+      PASS: pop 243 StdId == 243
+      PASS: pop 244 StdId == 244
+      PASS: pop 245 StdId == 245
+      PASS: pop 246 StdId == 246
+      PASS: pop 247 StdId == 247
+      PASS: pop 248 StdId == 248
+      PASS: pop 249 StdId == 249
+      PASS: pop 250 StdId == 250
+      PASS: pop 251 StdId == 251
+      PASS: pop 252 StdId == 252
+      PASS: pop 253 StdId == 253
+      PASS: pop 254 StdId == 254
+      PASS: pop 255 StdId == 255
+      PASS: pop 256 StdId == 256
+      PASS: pop 257 StdId == 257
+      PASS: pop 258 StdId == 258
+      PASS: pop 259 StdId == 259
+      PASS: pop 260 StdId == 260
+      PASS: pop 261 StdId == 261
+      PASS: pop 262 StdId == 262
+      PASS: pop 263 StdId == 263
+      PASS: pop 264 StdId == 264
+      PASS: pop 265 StdId == 265
+      PASS: pop 266 StdId == 266
+      PASS: pop 267 StdId == 267
+      PASS: pop 268 StdId == 268
+      PASS: pop 269 StdId == 269
+      PASS: pop 270 StdId == 270
+      PASS: pop 271 StdId == 271
+      PASS: pop 272 StdId == 272
+      PASS: pop 273 StdId == 273
+      PASS: pop 274 StdId == 274
+      PASS: pop 275 StdId == 275
+      PASS: pop 276 StdId == 276
+      PASS: pop 277 StdId == 277
+      PASS: pop 278 StdId == 278
+      PASS: pop 279 StdId == 279
+      PASS: pop 280 StdId == 280
+      PASS: pop 281 StdId == 281
+      PASS: pop 282 StdId == 282
+      PASS: pop 283 StdId == 283
+      PASS: pop 284 StdId == 284
+      PASS: pop 285 StdId == 285
+      PASS: pop 286 StdId == 286
+      PASS: pop 287 StdId == 287
+      PASS: pop 288 StdId == 288
+      PASS: pop 289 StdId == 289
+      PASS: pop 290 StdId == 290
+      PASS: pop 291 StdId == 291
+      PASS: pop 292 StdId == 292
+      PASS: pop 293 StdId == 293
+      PASS: pop 294 StdId == 294
+      PASS: pop 295 StdId == 295
+      PASS: pop 296 StdId == 296
+      PASS: pop 297 StdId == 297
+      PASS: pop 298 StdId == 298
+      PASS: pop 299 StdId == 299
+      PASS: pop 300 StdId == 300
+      PASS: pop 301 StdId == 301
+      PASS: pop 302 StdId == 302
+      PASS: pop 303 StdId == 303
+      PASS: pop 304 StdId == 304
+      PASS: pop 305 StdId == 305
+      PASS: pop 306 StdId == 306
+      PASS: pop 307 StdId == 307
+      PASS: pop 308 StdId == 308
+      PASS: pop 309 StdId == 309
+      PASS: pop 310 StdId == 310
+      PASS: pop 311 StdId == 311
+      PASS: pop 312 StdId == 312
+      PASS: pop 313 StdId == 313
+      PASS: pop 314 StdId == 314
+      PASS: pop 315 StdId == 315
+      PASS: pop 316 StdId == 316
+      PASS: pop 317 StdId == 317
+      PASS: pop 318 StdId == 318
+      PASS: pop 319 StdId == 319
+      PASS: pop 320 StdId == 320
+      PASS: pop 321 StdId == 321
+      PASS: pop 322 StdId == 322
+      PASS: pop 323 StdId == 323
+      PASS: pop 324 StdId == 324
+      PASS: pop 325 StdId == 325
+      PASS: pop 326 StdId == 326
+      PASS: pop 327 StdId == 327
+      PASS: pop 328 StdId == 328
+      PASS: pop 329 StdId == 329
+      PASS: pop 330 StdId == 330
+      PASS: pop 331 StdId == 331
+      PASS: pop 332 StdId == 332
+      PASS: pop 333 StdId == 333
+      PASS: pop 334 StdId == 334
+      PASS: pop 335 StdId == 335
+      PASS: pop 336 StdId == 336
+      PASS: pop 337 StdId == 337
+      PASS: pop 338 StdId == 338
+      PASS: pop 339 StdId == 339
+      PASS: pop 340 StdId == 340
+      PASS: pop 341 StdId == 341
+      PASS: pop 342 StdId == 342
+      PASS: pop 343 StdId == 343
+      PASS: pop 344 StdId == 344
+      PASS: pop 345 StdId == 345
+      PASS: pop 346 StdId == 346
+      PASS: pop 347 StdId == 347
+      PASS: pop 348 StdId == 348
+      PASS: pop 349 StdId == 349
+      PASS: pop 350 StdId == 350
+      PASS: pop 351 StdId == 351
+      PASS: pop 352 StdId == 352
+      PASS: pop 353 StdId == 353
+      PASS: pop 354 StdId == 354
+      PASS: pop 355 StdId == 355
+      PASS: pop 356 StdId == 356
+      PASS: pop 357 StdId == 357
+      PASS: pop 358 StdId == 358
+      PASS: pop 359 StdId == 359
+      PASS: pop 360 StdId == 360
+      PASS: pop 361 StdId == 361
+      PASS: pop 362 StdId == 362
+      PASS: pop 363 StdId == 363
+      PASS: pop 364 StdId == 364
+      PASS: pop 365 StdId == 365
+      PASS: pop 366 StdId == 366
+      PASS: pop 367 StdId == 367
+      PASS: pop 368 StdId == 368
+      PASS: pop 369 StdId == 369
+      PASS: pop 370 StdId == 370
+      PASS: pop 371 StdId == 371
+      PASS: pop 372 StdId == 372
+      PASS: pop 373 StdId == 373
+      PASS: pop 374 StdId == 374
+      PASS: pop 375 StdId == 375
+      PASS: pop 376 StdId == 376
+      PASS: pop 377 StdId == 377
+      PASS: pop 378 StdId == 378
+      PASS: pop 379 StdId == 379
+      PASS: pop 380 StdId == 380
+      PASS: pop 381 StdId == 381
+      PASS: pop 382 StdId == 382
+      PASS: pop 383 StdId == 383
+      PASS: pop 384 StdId == 384
+      PASS: pop 385 StdId == 385
+      PASS: pop 386 StdId == 386
+      PASS: pop 387 StdId == 387
+      PASS: pop 388 StdId == 388
+      PASS: pop 389 StdId == 389
+      PASS: pop 390 StdId == 390
+      PASS: pop 391 StdId == 391
+      PASS: pop 392 StdId == 392
+      PASS: pop 393 StdId == 393
+      PASS: pop 394 StdId == 394
+      PASS: pop 395 StdId == 395
+      PASS: pop 396 StdId == 396
+      PASS: pop 397 StdId == 397
+      PASS: pop 398 StdId == 398
+      PASS: pop 399 StdId == 399
+      PASS: pop 400 StdId == 400
+      PASS: pop 401 StdId == 401
+      PASS: pop 402 StdId == 402
+      PASS: pop 403 StdId == 403
+      PASS: pop 404 StdId == 404
+      PASS: pop 405 StdId == 405
+      PASS: pop 406 StdId == 406
+      PASS: pop 407 StdId == 407
+      PASS: pop 408 StdId == 408
+      PASS: pop 409 StdId == 409
+      PASS: pop 410 StdId == 410
+      PASS: pop 411 StdId == 411
+      PASS: pop 412 StdId == 412
+      PASS: pop 413 StdId == 413
+      PASS: pop 414 StdId == 414
+      PASS: pop 415 StdId == 415
+      PASS: pop 416 StdId == 416
+      PASS: pop 417 StdId == 417
+      PASS: pop 418 StdId == 418
+      PASS: pop 419 StdId == 419
+      PASS: pop 420 StdId == 420
+      PASS: pop 421 StdId == 421
+      PASS: pop 422 StdId == 422
+      PASS: pop 423 StdId == 423
+      PASS: pop 424 StdId == 424
+      PASS: pop 425 StdId == 425
+      PASS: pop 426 StdId == 426
+      PASS: pop 427 StdId == 427
+      PASS: pop 428 StdId == 428
+      PASS: pop 429 StdId == 429
+      PASS: pop 430 StdId == 430
+      PASS: pop 431 StdId == 431
+      PASS: pop 432 StdId == 432
+      PASS: pop 433 StdId == 433
+      PASS: pop 434 StdId == 434
+      PASS: pop 435 StdId == 435
+      PASS: pop 436 StdId == 436
+      PASS: pop 437 StdId == 437
+      PASS: pop 438 StdId == 438
+      PASS: pop 439 StdId == 439
+      PASS: pop 440 StdId == 440
+      PASS: pop 441 StdId == 441
+      PASS: pop 442 StdId == 442
+      PASS: pop 443 StdId == 443
+      PASS: pop 444 StdId == 444
+      PASS: pop 445 StdId == 445
+      PASS: pop 446 StdId == 446
+      PASS: pop 447 StdId == 447
+      PASS: pop 448 StdId == 448
+      PASS: pop 449 StdId == 449
+      PASS: pop 450 StdId == 450
+      PASS: pop 451 StdId == 451
+      PASS: pop 452 StdId == 452
+      PASS: pop 453 StdId == 453
+      PASS: pop 454 StdId == 454
+      PASS: pop 455 StdId == 455
+      PASS: pop 456 StdId == 456
+      PASS: pop 457 StdId == 457
+      PASS: pop 458 StdId == 458
+      PASS: pop 459 StdId == 459
+      PASS: pop 460 StdId == 460
+      PASS: pop 461 StdId == 461
+      PASS: pop 462 StdId == 462
+      PASS: pop 463 StdId == 463
+      PASS: pop 464 StdId == 464
+      PASS: pop 465 StdId == 465
+      PASS: pop 466 StdId == 466
+      PASS: pop 467 StdId == 467
+      PASS: pop 468 StdId == 468
+      PASS: pop 469 StdId == 469
+      PASS: pop 470 StdId == 470
+      PASS: pop 471 StdId == 471
+      PASS: pop 472 StdId == 472
+      PASS: pop 473 StdId == 473
+      PASS: pop 474 StdId == 474
+      PASS: pop 475 StdId == 475
+      PASS: pop 476 StdId == 476
+      PASS: pop 477 StdId == 477
+      PASS: pop 478 StdId == 478
+      PASS: pop 479 StdId == 479
+      PASS: pop 480 StdId == 480
+      PASS: pop 481 StdId == 481
+      PASS: pop 482 StdId == 482
+      PASS: pop 483 StdId == 483
+      PASS: pop 484 StdId == 484
+      PASS: pop 485 StdId == 485
+      PASS: pop 486 StdId == 486
+      PASS: pop 487 StdId == 487
+      PASS: pop 488 StdId == 488
+      PASS: pop 489 StdId == 489
+      PASS: pop 490 StdId == 490
+      PASS: pop 491 StdId == 491
+      PASS: pop 492 StdId == 492
+      PASS: pop 493 StdId == 493
+      PASS: pop 494 StdId == 494
+      PASS: pop 495 StdId == 495
+      PASS: pop 496 StdId == 496
+      PASS: pop 497 StdId == 497
+      PASS: pop 498 StdId == 498
+      PASS: pop 499 StdId == 499
+      PASS: pop 500 StdId == 500
+      PASS: pop 501 StdId == 501
+      PASS: pop 502 StdId == 502
+      PASS: pop 503 StdId == 503
+      PASS: pop 504 StdId == 504
+      PASS: pop 505 StdId == 505
+      PASS: pop 506 StdId == 506
+      PASS: pop 507 StdId == 507
+      PASS: pop 508 StdId == 508
+      PASS: pop 509 StdId == 509
+      PASS: pop 510 StdId == 510
+      PASS: pop 511 StdId == 511
+      PASS: tail advanced to MAX_SIZE/2 after draining half
+      PASS: counter == MAX_SIZE/2 after draining half
+      PASS: head == 3 after pushing 3 more into freed slots
+      PASS: oldest remaining message has StdId == MAX_SIZE/2
+      PASS: oldest data[0] matches original push
+      PASS: oldest data[1] matches original push
+      PASS: oldest data[7] matches original push
+      PASS: tail == MAX_SIZE/2 + 1 after popping oldest
+      PASS: counter == MAX_SIZE/2 + 2 after draining, pushing 3, popping 1
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================
+     TEST 8: RX push stores arrival_time
+    ========================================
+    
+    --- TEST 8: RX push stores arrival_time ---
+      PASS: counter == 1 after rx push
+      PASS: arrival_time == HAL_GetTick() stub value
+      PASS: popped arrival_time == 12345 (HAL_GetTick stub)
+      PASS: RxHeader.StdId preserved through pop
+      PASS: data[0] preserved
+      PASS: data[7] preserved
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 549
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
+[test_state_machine]
+  Conditions and Results:
+    
+    === State Machine / dbc_decode Test Harness ===
+    
+    === TEST 1: Handle_autonomous_state Initial_Sequence -> Monitor_sequence ===
+      PASS: Full initial sequence + Monitor_sequence transition
+    === TEST 2: Handle_state Start -> IDLE ===
+      PASS: Start -> IDLE with WDT enabled
+    === TEST 3: Handle_state IDLE -> AS_ON ===
+      PASS: IDLE -> AS_ON on ASMS rising edge
+    === TEST 4: Handle_state EMERGENCY recovery ===
+      PASS: EMERGENCY correctly recovers to IDLE
+    === TEST 5: dbc_decode AQT7 rear pressure ===
+      PASS: AQT7 decoded Rear_Pressure.Hydraulic = 123.4
+    === TEST 6: dbc_decode VCU_IGN_R2_D ===
+      PASS: VCU_IGN_R2_D decoded Ignition_Status=1, vcu_sdc=1
+    === TEST 7: dbc_decode JETSON mission ===
+      PASS: JETSON decoded AS_STATE_READY, TRACKDRIVE
+    === TEST 8: dbc_decode VCU_RPM ===
+      PASS: VCU_RPM decoded rpm = 3000
+    
+    === Results: 8 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_temperature]
+  Conditions and Results:
+    
+    === Temperature Sensor Test Harness ===
+    
+    === TEST 1: raw_vref zero returns 0.0f ===
+      PASS: GetTemperature with raw_vref=0 should return 0.0f
+      PASS: Return value must be exactly zero, not negative zero or small positive
+      PASS: raw_vref=0 returns 0.000000 (expected 0.0)
+    === TEST 2: Known temperature returns 30.0C ===
+      PASS: GetTemperature(1730, 1500) should return 30.0C
+      PASS: Temperature must be non-negative
+      PASS: GetTemperature(1730, 1500) = 30.000000 (expected 30.0)
+    === TEST 3: Higher temperature (1900 raw) ===
+      PASS: GetTemperature(1900, 1500) should return ~61.63C
+      PASS: Temperature with raw_temp > ts_cal1 must be > 30C
+      PASS: GetTemperature(1900, 1500) = 61.627907 (expected 61.627907)
+    === TEST 4: VREF variation compensates temperature ===
+      PASS: With VREF variation (raw_vref=1600), GetTemperature(1845,1600) should give ~30.0C
+      PASS: GetTemperature(1845, 1600) = 29.941860 (expected ~30.0 within 1.0C)
+    === TEST 5: Cal1 equals Cal2 (division by zero) ===
+      PASS: Division by zero should produce a non-finite (infinity) result
+      PASS: GetTemperature with ts_cal1==ts_cal2 returns non-finite value (isfinite=0, value=inf)
+    
+    === Results: 5 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_tim_callback]
+  Conditions and Results:
+    ========================================================
+     HAL_TIM_PeriodElapsedCallback  Unit Tests
+    ========================================================
+    
+    ========================================================
+     TEST 1:  ACU frame queued with correct ID
+    ========================================================
+    
+    --- TEST 1: ACU frame queued with correct ID ---
+      PASS: at least one CAN message queued
+      PASS: first queued message StdId == 0x51 (ACU)
+      PASS: ACU DLC == 8
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================================
+     TEST 2:  ACU frame data content
+    ========================================================
+    
+    --- TEST 2: ACU frame data content ---
+      PASS: tx_data[0] == ASSI_state (3)
+      PASS: tx_data[1] == acu_state (0, simplified)
+      PASS: tx_data[2] == chip_temp truncated (35)
+      PASS: tx_data[3] == mission_select (3 = TRACKDRIVE)
+      PASS: tx_data[4] == as_state (3 = AS_STATE_DRIVING)
+      PASS: tx_data[5] == emergency (0)
+      PASS: tx_data[6] == asms (1)
+      PASS: tx_data[7] == ign (1)
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================================
+     TEST 3:  ASF_SIGNALS frame queued
+    ========================================================
+    
+    --- TEST 3: ASF_SIGNALS frame queued ---
+      PASS: at least two CAN messages queued
+      PASS: second queued message StdId == 0x511 (ASF_SIGNALS)
+      PASS: ASF_SIGNALS DLC == 4
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================================
+     TEST 4:  ASF_SIGNALS pressure scaling
+    ========================================================
+    
+    --- TEST 4: ASF_SIGNALS pressure scaling ---
+      PASS: ebs_pressure_tank_front == 0
+      PASS: ebs_pressure_tank_rear == 80  (8.0*10)
+      PASS: brake_pressure_front == 50   (5.0*10)
+      PASS: brake_pressure_rear == 0
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================================
+     TEST 5:  BLE telemetry sent via DMA
+    ========================================================
+    
+    --- TEST 5: BLE telemetry sent via DMA ---
+      PASS: HAL_UART_Transmit_DMA called exactly once
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================================
+     TEST 6:  BLE telemetry data content
+    ========================================================
+    
+    --- TEST 6: BLE telemetry data content ---
+      PASS: state_machine == 0 (simplified)
+      PASS: assi_status == 1
+      PASS: mission == 1 (ACCELERATION)
+      PASS: hydraulic_p1 == 350  (3.5 * 100)
+      PASS: hydraulic_p2 == 0    (Rear_Hydraulic not set)
+      PASS: pneumatic_p1 == 0    (Front_Pneumatic not set)
+      PASS: pneumatic_p2 == 720  (7.2 * 100)
+      PASS: chip_temp == 4530    (45.3 * 100)
+      PASS: solenoid_front == 1
+      PASS: solenoid_rear == 0
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================================
+     TEST 7:  BLE telemetry blocked when busy
+    ========================================================
+    
+    --- TEST 7: BLE telemetry blocked when busy ---
+      PASS: first call: DMA called
+      PASS: first call: busy flag set
+      PASS: second call: DMA NOT called (busy, no timeout)
+      PASS: second call: still busy
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================================
+     TEST 8:  BLE telemetry blocked before config done
+    ========================================================
+    
+    --- TEST 8: BLE telemetry blocked before config done ---
+      PASS: DMA NOT called when config not done
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================================
+     TEST 9:  BLE uint16 clamping (pneumatic >65535)
+    ========================================================
+    
+    --- TEST 9: BLE uint16 clamping ---
+      PASS: pneumatic_p1 clamped to 65535  (700.0*100=70000 > 65535)
+    
+      +++ TEST 9 PASSED +++
+    
+    ========================================================
+     TEST 10: BLE int16 clamping (chip_temp +/- extremes)
+    ========================================================
+    
+    --- TEST 10: BLE int16 clamping ---
+      PASS: chip_temp clamped to 32767  (400.0*100 > 32767)
+      PASS: chip_temp clamped to -32768  (-400.0*100 < -32768)
+    
+      +++ TEST 10 PASSED +++
+    
+    ========================================================
+     TEST 11: BLE uint16 negative clamping
+    ========================================================
+    
+    --- TEST 11: BLE uint16 negative clamping ---
+      PASS: hydraulic_p1 clamped to 0  (-1.0*100 < 0)
+    
+      +++ TEST 11 PASSED +++
+    
+    ========================================================
+     TEST 12: DMA timeout recovery
+    ========================================================
+    
+    --- TEST 12: DMA timeout recovery ---
+      PASS: step1: DMA called once
+      PASS: step1: busy flag set
+      PASS: step1: abort not yet called
+      PASS: step2: HAL_UART_Abort called once (timeout >500ms)
+      PASS: step2: DMA called again (re-sends immediately after abort+clear)
+      PASS: step2: busy set again (re-send in same cycle after abort)
+      PASS: step3: no additional abort (timeout not expired)
+      PASS: step3: no new DMA (still busy from re-send)
+      PASS: step3: still busy (no timeout expired)
+      PASS: step4: second abort (2000-1000 > 500)
+      PASS: step4: DMA called again (re-send after second abort+clear)
+      PASS: step4: busy set again after re-send
+    
+      +++ TEST 12 PASSED +++
+    
+    ========================================================
+     RESULTS
+    ========================================================
+      Passed assertions: 50
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
+[test_uart_callbacks]
+  Conditions and Results:
+    ========================================
+     UART Callback Unit Tests
+    ========================================
+    
+    ========================================
+     TEST 1:  RX 'log' command sets uart_log_dump
+    ========================================
+    
+    --- TEST 1: RX callback sets uart_log_dump on 'log' command ---
+      PASS: uart_log_dump == 1 after 'log' command
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     TEST 2:  RX 'resume' command clears uart_log_dump
+    ========================================
+    
+    --- TEST 2: RX callback clears uart_log_dump on 'resume' command ---
+      PASS: uart_log_dump == 0 after 'resume' command
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     TEST 3:  RX callback strips whitespace
+    ========================================
+    
+    --- TEST 3: RX callback strips whitespace around command ---
+      PASS: uart_log_dump == 1 after '  log  \r\n'
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     TEST 4:  RX callback is case-insensitive
+    ========================================
+    
+    --- TEST 4: RX callback is case-insensitive ---
+      PASS: uart_log_dump == 1 after 'LOG' (uppercase)
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     TEST 5:  RX unknown command does nothing
+    ========================================
+    
+    --- TEST 5: Unknown command does not change state ---
+      PASS: uart_log_dump unchanged (stays 0) after unknown command
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     TEST 6:  RX multiple calls, no buffer bleed
+    ========================================
+    
+    --- TEST 6: Multiple calls with correct state transitions ---
+      PASS: uart_log_dump == 1 after first 'log'
+      PASS: uart_log_dump == 0 after 'resume'
+      PASS: uart_log_dump == 1 after second 'log'
+      INFO: rx_buffer content does not bleed (Size-bound loop)
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================
+     TEST 7:  RX callback ignores non-USART2
+    ========================================
+    
+    --- TEST 7: RX callback ignores other USART instances ---
+      PASS: uart_log_dump unchanged when callback fired with non-USART2 handle
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================
+     TEST 8:  TX callback clears ble_tx_busy
+    ========================================
+    
+    --- TEST 8: TX complete callback clears ble_tx_busy ---
+      PASS: ble_tx_busy == 0 after TX complete callback
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================
+     TEST 9:  TX callback ignores non-USART2
+    ========================================
+    
+    --- TEST 9: TX complete callback ignores non-USART2 handles ---
+      PASS: ble_tx_busy stays 1 when callback fired with non-USART2 handle
+    
+      +++ TEST 9 PASSED +++
+    
+    ========================================
+     TEST 10: State persistence (reliable resets)
+    ========================================
+    
+    --- TEST 10: State persistence — ble_tx_busy resets reliably ---
+      PASS: ble_tx_busy == 0 after first callback
+      PASS: ble_tx_busy == 0 after second callback (reliably reset)
+      PASS: uart_log_dump == 0 after resume (reliable transition)
+      PASS: uart_log_dump == 1 after log (reliable transition)
+    
+      +++ TEST 10 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 16
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
+========================================
+SUMMARY: 13/13 tests passed
+========================================

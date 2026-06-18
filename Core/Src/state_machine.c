@@ -11,7 +11,7 @@ void Handle_autonomous_state() {
 		}
 		break;
 	case Monitor_sequence:
-		continuous_monitoring(t24.SDC_feedback, NULL,
+		continuous_monitoring(t24.SDC_feedback,
 			t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,
 			t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
 		if(t24.Current_Mission != t24.Jetson_mission){

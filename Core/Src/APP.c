@@ -12,7 +12,6 @@
 struct car t24;
 struct can_queue can_rx_data;
 
-
 extern uint32_t ADC_Samples[4];
 extern uint8_t mission_selector_enable;
 uint8_t prev_ASMS = 0;
@@ -69,7 +68,7 @@ void app_init() {
 	t24.HW_WDT_Enable = 1;
 
 
-	 Vehicle_state_machine = IDLE;
+	Vehicle_state_machine = Start;
 	 Autonomous_state = OFF;
 	 startup_sequence_state = WDT_TOGGLE_CHECK;
 
@@ -112,7 +111,7 @@ void app() {
 	toggle_wdt();
 	//handle_uart_logs();
 	LED_indicator_controller();
-	ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);
+	ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);
 	Peripheral_actuation();
 	handle_can_tx();
 	can_buffer_pop(&can_rx_ringbuffer, 0,&can_rx_data);
@@ -186,19 +185,21 @@ void dbc_decode(){
 		struct autonomous_t26_aqt7_t rear_dynamics;
 		autonomous_t26_aqt7_unpack(&rear_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT7_LENGTH);
 		t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
-		t24.VCU_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
+		t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 		break;
 	case AUTONOMOUS_T26_VCU_IGN_R2_D_FRAME_ID:
 		struct autonomous_t26_vcu_ign_r2_d_t vcu_data;
 		autonomous_t26_vcu_ign_r2_d_unpack(&vcu_data, can_rx_data.tx_data, AUTONOMOUS_T26_VCU_IGN_R2_D_LENGTH);
 		t24.Ignition_Status = autonomous_t26_vcu_ign_r2_d_ignition_auto_decode(vcu_data.ignition_auto);
 		t24.vcu_sdc = autonomous_t26_vcu_ign_r2_d_shutdown_signal_decode(vcu_data.shutdown_signal);
+		t24.VCU_LAST_TX = HAL_GetTick();
 		break;
 	case AUTONOMOUS_T26_JETSON_FRAME_ID:
 		struct autonomous_t26_jetson_t jetson_data;
 		autonomous_t26_jetson_unpack(&jetson_data, can_rx_data.tx_data,AUTONOMOUS_T26_JETSON_LENGTH);
 		t24.Autonomous_State = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
 		t24.Jetson_mission = autonomous_t26_jetson_as_mission_decode(jetson_data.as_mission);
+		t24.JETSON_LAST_TX = HAL_GetTick();
 		break;
 
 	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
@@ -206,6 +207,12 @@ void dbc_decode(){
 		autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
 		t24.rpm = autonomous_t26_vcu_rpm_rpm_actual_decode(vcu_rpm.rpm_actual);
 		break;
+		case AUTONOMOUS_T26_CUBE_MARS_FEEDBACK_FRAME_ID:
+			t24.DIR_ACTUATOR_LAST_TX = HAL_GetTick();
+			break;
+		case AUTONOMOUS_T26_RES_FRAME_ID:
+			t24.RES_LAST_TX = HAL_GetTick();
+			break;
 	default:
 		break;
 	}

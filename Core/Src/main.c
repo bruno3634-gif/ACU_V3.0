@@ -70,8 +70,11 @@ struct ring can_rx_ringbuffer;
 /* USER CODE BEGIN PM */
 uint32_t TX_MAILBOX;
 uint8_t tx_data[8];
+
 ema_data_structure ema_rear_pressure;
 ema_data_structure ema_front_pressure;
+
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/

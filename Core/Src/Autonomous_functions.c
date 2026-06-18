@@ -149,8 +149,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			break;
 	}
 }
-void continuous_monitoring(uint8_t sdc_status,
-		struct can_timeouts *last_message_from, float Rear_pneumatic,
+void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic,
 		float Front_pneumatic, float Rear_hydraulic, float Front_hydraulic) {
 	// CAN Messages timeouts
 	/**
@@ -161,7 +160,6 @@ void continuous_monitoring(uint8_t sdc_status,
 	 * 			Check pneumatic pressure are between 6 and 10 Bar
 	 *
 	 * 			note: sdc open reads 0
-	 *			Reanalyze this
 	 */
 
 	if (sdc_status == 0) {
@@ -184,6 +182,8 @@ void continuous_monitoring(uint8_t sdc_status,
 			case DIR_TIMEOUT:
 				Emergency_cause = dir_actuator_timeout;
 				break;
+			case RES_TIMEOUT:
+				Emergency_cause = RES;
 			default:
 				Emergency_cause = UNKOWN;
 				break;
@@ -273,8 +273,9 @@ uint8_t module_timeout(){
 	if(current_time - t24.VCU_LAST_TX > MAX_TIMEOUT)return VCU_TIMEOUT;
 	if(current_time - t24.REAR_PRESSURE_LAST_TX > MAX_TIMEOUT) return PRESSURE_TIMEOUT;
 	if(current_time - t24.JETSON_LAST_TX > MAX_TIMEOUT) return JETSON_TIMEOUT;
-
-	return 0;
+	if(current_time - t24.DIR_ACTUATOR_LAST_TX > MAX_TIMEOUT) return  DIR_TIMEOUT;
+	if(current_time - t24.RES_LAST_TX > MAX_TIMEOUT) return RES_TIMEOUT;
+	return NO_TIMEOUT;
 }
 
 uint32_t emergency_blame(){

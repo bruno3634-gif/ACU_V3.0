@@ -195,7 +195,7 @@ struct car {
 	struct speed Speed;
 	float chip_temp;
 	int rpm;
-	uint32_t VCU_LAST_TX,REAR_PRESSURE_LAST_TX,JETSON_LAST_TX,DIR_ACTUATOR_LAST_TX;
+	uint32_t VCU_LAST_TX,REAR_PRESSURE_LAST_TX,JETSON_LAST_TX,DIR_ACTUATOR_LAST_TX,RES_LAST_TX;
 };
 
 typedef enum {
@@ -219,7 +219,8 @@ typedef enum {
 	VCU_TIMEOUT,
 	JETSON_TIMEOUT,
 	PRESSURE_TIMEOUT,
-	DIR_TIMEOUT
+	DIR_TIMEOUT,
+	RES_TIMEOUT
 }can_timeouts_t;
 
 
@@ -235,11 +236,6 @@ typedef enum {
 	SEQUENCE_ERROR           // 8 — Error state -> EMERGENCY
 } startup_sequence_state_t;
 
-struct can_timeouts {
-	unsigned long vcu;
-	unsigned long res;
-	unsigned long jetson;
-};
 
 struct can_queue {
 	uint32_t TX_MAILBOX;
