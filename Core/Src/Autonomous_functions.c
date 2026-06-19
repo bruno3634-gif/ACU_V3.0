@@ -8,123 +8,148 @@
 #include "Autonomous_functions.h"
 #include "hardware_abstraction.h"
 
-#define TIMEOUT_SDC_MS 500
-#define TIMEOUT_PRESSURE_MS 2000
-#define TIMEOUT_HV_MS 5000
+#define TIMEOUT_WDT_MS         5000
+#define TIMEOUT_SOLENOID_MS    5000
+// Note: HV activation has no timeout in the flowchart (old version waits indefinitely)
+// #define TIMEOUT_HV_MS          5000
+#define SOLENOID_MIN_DELAY_MS  1000
 #define EBS_MIN_BAR 6.0f
 #define EBS_MAX_BAR 10.0f
-#define EBS_HYD_GAIN 10.0f
+#define EBS_FRONT_HYD_GAIN 9.0f
+#define EBS_REAR_HYD_GAIN_INITIAL 3.8f
+#define EBS_REAR_HYD_GAIN_FINAL 3.0f
 #define EBS_HYD_UNLOADED_BAR 1.0f
 
-// macros
 #define IN_RANGE(val, min, max) ((val) > (min) && (val) < (max))
-#define IS_CORRELATED(hyd, pneu) ((hyd) > (EBS_HYD_GAIN * (pneu)))
-#define IS_UNLOADED(hyd) ((hyd) < EBS_HYD_UNLOADED_BAR)
-
+#define IS_CORRELATED(hyd, pneu, gain) ((hyd) >= (gain) * (pneu))
+#define IS_UNLOADED(hyd) ((hyd) <= EBS_HYD_UNLOADED_BAR)
 
 static uint32_t state_timer = 0;
 
 void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Main_state_machine_t *Vehicle_state_machine) {
 	switch (*seq_status) {
-		case Watchdog_check:
+		case WDT_TOGGLE_CHECK:
+			if (t24->SDC_feedback == 0) {
+				t24->HW_WDT_Enable = 0;
+				state_timer = millis();
+				*seq_status = WDT_STP_TOGGLE_CHECK;
+			}
+			break;
+
+		case WDT_STP_TOGGLE_CHECK:
+#if SKIP_WDT_CHECK
+			t24->HW_WDT_Enable = 1;
+			*seq_status = PNEUMATIC_CHECK;
+			break;
+#endif
 			if (t24->SDC_feedback == 1) {
 				t24->HW_WDT_Enable = 1;
-				state_timer = millis();
-				*seq_status = Pressure_check;
-			} else if (check_timeout(state_timer, TIMEOUT_SDC_MS)) {
-				*seq_status = Error_state;
+				*seq_status = PNEUMATIC_CHECK;
+			} else if (check_timeout(state_timer, TIMEOUT_WDT_MS)) {
+				*seq_status = SEQUENCE_ERROR;
 			}
 			break;
 
-		/*
-		 * BP1 & BP2 > 6 (bar)
-		 * BP1 & BP2 < 10 (bar)
-		 * */
-		case Pressure_check:
-			if (IN_RANGE(t24->Front_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR) && IN_RANGE(t24->Rear_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
-
-				state_timer = millis();
-				*seq_status = HV_activation;
-			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
-				*seq_status = Error_state;
-			}
+		case PNEUMATIC_CHECK:
+#if SKIP_PNEUMATIC_CHECK
+			*seq_status = PRESSURE_CHECK1;
 			break;
-
-		case HV_activation:
-			t24->Ignition_Request = t24->ignition_pin_state;
-			if (t24->Ignition_Status) {
-				state_timer = millis();
-				*seq_status = Pressure_correlation_check;
-			} else if (check_timeout(state_timer, TIMEOUT_HV_MS)) {
-				*seq_status = Error_state;
-			}
-			break;
-
-		case Pressure_correlation_check:
-
-			/*
-			 * BP5 > 10 * BP1
-			 * BP6 > 10 * BP2
-			 * */
-			if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic)
-				&& IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic)) {
-
-				if (t24->Ignition_Status == 1) {
-					state_timer = millis();
-					*seq_status = MB1_Check;
-				}
-
-			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
-				*seq_status = Error_state;
-			}
-			break;
-
-		case MB1_Check:
-			// Open MB1, Close MB2
-			t24->Solenoid1_Request = 1;
-			t24->Solenoid2_Request = 0;
-
-			if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic)
-				&& IS_UNLOADED(t24->Rear_Pressure.Hydraulic)) {
-				state_timer = millis();
-				*seq_status = MB2_Check;
-			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
-				*seq_status = Error_state;
-			}
-			break;
-
-		case MB2_Check:
-			// Close MB1, Open MB2
-#ifndef SKIP_REAR_PRESSURE_CHECK
-			t24->Solenoid1_Request = 0;
-			t24->Solenoid2_Request = 1;
-
-
-			if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic)
-				&& IS_UNLOADED(t24->Front_Pressure.Hydraulic)) {
-
-				t24->Autonomous_State = AS_STATE_READY;
-				t24->Solenoid1_Request = 0;
-				t24->Solenoid2_Request = 0;
-			} else if (check_timeout(state_timer, TIMEOUT_PRESSURE_MS)) {
-				*seq_status = Error_state;
-			}
-#else
-			t24->Autonomous_State = AS_STATE_READY;
 #endif
+			if (IN_RANGE(t24->Front_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)
+				&& IN_RANGE(t24->Rear_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
+				*seq_status = PRESSURE_CHECK1;
+			} else {
+				*seq_status = SEQUENCE_ERROR;
+			}
 			break;
 
-		case Error_state:
+		case PRESSURE_CHECK1:
+#if SKIP_PRESSURE_CHECK1
+			*seq_status = HV_ACTIVATION;
+			break;
+#endif
+			if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)
+				&& IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_INITIAL)) {
+				*seq_status = HV_ACTIVATION;
+			} else {
+				*seq_status = SEQUENCE_ERROR;
+			}
+			break;
+
+		case HV_ACTIVATION:
+			t24->Ignition_Request = t24->ignition_pin_state;
+#if SKIP_IGNITION_CHECK
+			*seq_status = PRESSURE_CHECK_FRONT;
+			state_timer = millis();
+			break;
+#endif
+			if (t24->Ignition_Status == 1) {
+				*seq_status = PRESSURE_CHECK_FRONT;
+				state_timer = millis();
+			}
+			break;
+
+		case PRESSURE_CHECK_FRONT:
+			t24->front_solenoid = 1;
+			t24->rear_solenoid = 0;
+#if SKIP_PRESSURE_FRONT_CHECK
+			state_timer = millis();
+			*seq_status = PRESSURE_CHECK_REAR;
+			break;
+#endif
+			if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)
+				&& IS_UNLOADED(t24->Rear_Pressure.Hydraulic)
+				&& check_timeout(state_timer, SOLENOID_MIN_DELAY_MS)) {
+				*seq_status = PRESSURE_CHECK_REAR;
+				state_timer = millis();
+			} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
+				*seq_status = SEQUENCE_ERROR;
+			}
+			break;
+
+		case PRESSURE_CHECK_REAR:
+			t24->front_solenoid = 0;
+			t24->rear_solenoid = 1;
+#if SKIP_PRESSURE_REAR_CHECK
+			state_timer = millis();
+			*seq_status = PRESSURE_CHECK2;
+			break;
+#endif
+			if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_FINAL)
+				&& IS_UNLOADED(t24->Front_Pressure.Hydraulic)
+				&& check_timeout(state_timer, SOLENOID_MIN_DELAY_MS)) {
+				*seq_status = PRESSURE_CHECK2;
+				state_timer = millis();
+			} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
+				*seq_status = SEQUENCE_ERROR;
+			}
+			break;
+
+		case PRESSURE_CHECK2:
+			t24->front_solenoid = 0;
+			t24->rear_solenoid = 0;
+#if SKIP_PRESSURE_CHECK2
+			t24->Autonomous_State = AS_STATE_READY;
+			break;
+#endif
+			if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_FINAL)
+				&& IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)) {
+				t24->Autonomous_State = AS_STATE_READY;
+			} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
+				*seq_status = SEQUENCE_ERROR;
+			}
+			break;
+
+		case SEQUENCE_ERROR:
 			*Vehicle_state_machine = EMERGENCY;
 			break;
 
 		default:
-			*seq_status = Error_state;
+			*seq_status = SEQUENCE_ERROR;
 			break;
 	}
 }
-void continuous_monitoring(uint8_t sdc_status,
-		struct can_timeouts *last_message_from, float Rear_pneumatic,
+void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic,
 		float Front_pneumatic, float Rear_hydraulic, float Front_hydraulic) {
 	// CAN Messages timeouts
 	/**
@@ -135,7 +160,6 @@ void continuous_monitoring(uint8_t sdc_status,
 	 * 			Check pneumatic pressure are between 6 and 10 Bar
 	 *
 	 * 			note: sdc open reads 0
-	 *			Reanalyze this
 	 */
 
 	if (sdc_status == 0) {
@@ -158,6 +182,8 @@ void continuous_monitoring(uint8_t sdc_status,
 			case DIR_TIMEOUT:
 				Emergency_cause = dir_actuator_timeout;
 				break;
+			case RES_TIMEOUT:
+				Emergency_cause = RES;
 			default:
 				Emergency_cause = UNKOWN;
 				break;
@@ -170,7 +196,7 @@ void continuous_monitoring(uint8_t sdc_status,
 		return;
 	}
 
-	if (!IS_CORRELATED(Front_hydraulic, Front_pneumatic) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic)) {
+	if (!IS_CORRELATED(Front_hydraulic, Front_pneumatic, EBS_FRONT_HYD_GAIN) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic, EBS_REAR_HYD_GAIN_FINAL)) {
 		Vehicle_state_machine = EMERGENCY;
 		return;
 	}
@@ -247,8 +273,9 @@ uint8_t module_timeout(){
 	if(current_time - t24.VCU_LAST_TX > MAX_TIMEOUT)return VCU_TIMEOUT;
 	if(current_time - t24.REAR_PRESSURE_LAST_TX > MAX_TIMEOUT) return PRESSURE_TIMEOUT;
 	if(current_time - t24.JETSON_LAST_TX > MAX_TIMEOUT) return JETSON_TIMEOUT;
-
-	return 0;
+	if(current_time - t24.DIR_ACTUATOR_LAST_TX > MAX_TIMEOUT) return  DIR_TIMEOUT;
+	if(current_time - t24.RES_LAST_TX > MAX_TIMEOUT) return RES_TIMEOUT;
+	return NO_TIMEOUT;
 }
 
 uint32_t emergency_blame(){

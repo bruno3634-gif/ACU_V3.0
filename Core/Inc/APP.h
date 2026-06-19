@@ -34,5 +34,8 @@ extern startup_sequence_state_t startup_sequence_state;
 void app_init();
 void app();
 void dbc_decode();
+void ble_module_config_start(void);
+void ble_module_config_tick(void);
+uint8_t ble_module_config_is_done(void);
 
 #endif /* INC_APP_H_ */
