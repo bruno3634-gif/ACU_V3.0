@@ -182,11 +182,12 @@ void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic,
 			case DIR_TIMEOUT:
 				Emergency_cause = dir_actuator_timeout;
 				break;
-			case RES_TIMEOUT:
-				Emergency_cause = RES;
-			default:
-				Emergency_cause = UNKOWN;
-				break;
+		case RES_TIMEOUT:
+			Emergency_cause = RES;
+			break;
+		default:
+			Emergency_cause = UNKOWN;
+			break;
 		}
 		return;
 	}

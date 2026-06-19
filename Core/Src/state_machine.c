@@ -16,7 +16,7 @@ void Handle_autonomous_state() {
 			t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
 		if(t24.Current_Mission != t24.Jetson_mission){
 			Vehicle_state_machine = EMERGENCY;
-		}else if(t24.Autonomous_State == Finish){
+		}else if(t24.Autonomous_State == AS_STATE_FINISHED){
 			Autonomous_state = Finish;
 		}
 		break;

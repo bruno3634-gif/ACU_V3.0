@@ -272,6 +272,7 @@ void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic,
                 break;
             case RES_TIMEOUT:
                 Emergency_cause = RES;
+                break;
             default:
                 Emergency_cause = UNKOWN;
                 break;
