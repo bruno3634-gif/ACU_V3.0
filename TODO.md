@@ -19,7 +19,7 @@
 | C1 | `continuous_monitoring()` wired into `Monitor_sequence` | `state_machine.c:12-14` | SDC monitoring, CAN timeouts, pressure range, and hydraulic correlation now run on every tick during autonomous driving. | ✅ FIXED |
 | C2 | Solenoid requests don't reach GPIO | Multiple | Now unified: `initial_sequence()`, `APP.c`, `main.c` CAN tx all write `front_solenoid`/`rear_solenoid`. Duplicate fields removed. | ✅ FIXED |
 | C3 | `ASSI_control()` return value discarded | `APP.c:114` | **Now assigned:** `ASSI_leds_control_signal = ASSI_control(...)`. | ✅ FIXED |
-| C4 | Variable definition in header | `state_machine.h:18` | `BLE_STATE_MACHINE_t ble_state = BLE_IDLE;` is a **definition** in a header. Causes linker error if included by >1 translation unit. Change to `extern` and define in one `.c`. | ❌ **NOT FIXED** |
+| C4 | Variable definition in header | `state_machine.h:18` | `BLE_STATE_MACHINE_t ble_state = BLE_IDLE;` was a **definition** in a header. **Now fixed:** `ble_state` is `static` in `Core/Src/ble_handler.c:31`. The enum type `BLE_STATE_MACHINE_t` remains in `main.h` but only the typedef and enum constants, no variable. | ✅ FIXED |
 | C5 | `Start` state unreachable | `APP.c:71` | **Now fixed:** `app_init()` initializes `Vehicle_state_machine = Start`. First `Handle_state()` call executes `Start` case (enables WDT), then transitions to `IDLE`. | ✅ **FIXED** |
 
 ---
@@ -32,8 +32,9 @@
 | H2 | Solenoid actuation path unified | Multiple | All code now uses `front_solenoid`/`rear_solenoid`. Duplicate fields removed. | ✅ FIXED |
 | H3 | Wire `ASSI_control()` return to caller | `APP.c:114` | `ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);` | ✅ FIXED |
 | H4 | Fix `ASSI_control()` pass-by-value | `Autonomous_functions.c:207` | Function now returns the LED state mask, caller assigns it. | ✅ FIXED |
-| H5 | Fix `ASSI_control()` bitwise logic | `hardware_abstraction.c:60-61` | **Still broken:** `ASSI_leds_control_signal && 0b00000010` uses logical `&&` not bitwise `&`. Result: LEDs never illuminate properly. Fix: change `&&` to `&`. | ❌ **NOT FIXED** |
+| H5 | Fix `ASSI_control()` bitwise logic | `hardware_abstraction.c:60-61` | **Now fixed:** Code already uses bitwise `&`, not logical `&&`. Verified by grep. No change needed. | ✅ FIXED |
 | H6 | Add solenoid state to acquisition | `hardware_abstraction.c:36` | `Peripheral_aquisition()` never reads back actual solenoid GPIO state. `front_solenoid`/`rear_solenoid` are write-only. | ❌ **NOT FIXED** |
+| H7 | Stale statics after state machine re-entry | `state_machine.c:18-19` | `mismatch_tick` and `mismatch_active` declared as function-level statics inside `Handle_autonomous_state()` `Monitor_sequence` case. After EMERGENCY→IDLE→AS_ON re-entry, these retain previous values. If a mismatch was active before EMERGENCY, mismatch_active=1 persists, causing the debounce expiry check (`millis() - mismatch_tick >= 1000`) to fire immediately on re-entry to Monitor_sequence, potentially causing a false EMERGENCY loop. Fix: reset statics on state machine re-entry OR move to a managed structure that resets with Autonomous_state. | ❌ NOT FIXED |
 
 ---
 
@@ -48,8 +49,8 @@
 | M5 | `Start` state logic vestigial | `state_machine.c:58` | **Now fixed by C5:** `app_init()` sets `Vehicle_state_machine = Start`, so the `Start` case now executes (enables WDT) before transitioning to `IDLE`. | ✅ **FIXED** |
 | M6 | CAN TX queue bounds | `hardware_abstraction.c:84` | `add_can_message()` does `can_queue_index++` without checking `>=64`. Buffer overrun risk. | ❌ **NOT FIXED** |
 | M7 | `Handle_Emergency()` now uses unified fields | Multiple | `initial_sequence()` now also writes `front_solenoid`/`rear_solenoid`. Duplicate fields removed. | ✅ FIXED |
-| M8 | `AS_ON` re-entry deadlock | `state_machine.c:70` | `as_on_first_time` prevents re-running startup. After EMERGENCY→IDLE→AS_ON, `Autonomous_state` is still `OFF` → default case → EMERGENCY again. May be intentional but undocumented. | ❌ **NOT FIXED** |
-| M9 | No debounce on mission mismatch | `state_machine.c:17` | Single-sample `t24.Current_Mission != t24.Jetson_mission` immediately triggers EMERGENCY without hysteresis. | ❌ **NOT FIXED** |
+| M8 | `AS_ON` re-entry deadlock | `state_machine.c:70` | `as_on_first_time` static properly handles re-entry. Trace: EMERGENCY→IDLE (as_on_first_time reset to 0 at line 81)→AS_ON (if !as_on_first_time true, re-inits Autonomous_state=Initial_Sequence and startup_sequence_state=WDT_TOGGLE_CHECK, then sets as_on_first_time=1)→Handle_autonomous_state runs Initial_Sequence. `Autonomous_state` is NEVER left at `OFF` during re-entry. The concern was a false alarm. | ✅ FIXED |
+| M9 | No debounce on mission mismatch | `state_machine.c:18-29` | **Now implemented:** Debounce IS implemented with static `mismatch_tick` and `mismatch_active`. Requires 1 second of sustained mismatch before triggering EMERGENCY: `if (!mismatch_active) { mismatch_active=1; mismatch_tick=millis(); } else if (millis()-mismatch_tick >= 1000) { Vehicle_state_machine=EMERGENCY; }`. | ✅ FIXED |
 | M10 | `Autonomous_functions.c` includes `hardware_abstraction.h` | `Autonomous_functions.c:9` | Include IS used — provides `millis()`, `check_timeout()`, etc. No issue. | ✅ FIXED (false alarm) |
 | S1 | Mission selection blocked before HV activation | `main.c:349` + `hardware_abstraction.c:46` | `mission_selector_enable = !t24.ASMS` already blocks mission changes once ASMS=1 (required to enter AS_ON). The EXTI callback checks `mission_selector_enable == 1`. No additional guard needed. | ✅ FIXED (design is correct) |
 
@@ -119,10 +120,27 @@ Start ──→ IDLE            OFF                         WDT_TOGGLE_CHECK
 
 | Test | File | Status | Notes |
 |------|------|--------|-------|
-| `test_normal_startup` | `tests/test_initial_sequence.c` | Passing | Walks all 8 stages WDT→READY |
-| `test_wdt_timeout` | same | Passing | SDC open >5s → EMERGENCY |
-| `test_pneumatic_out_of_range` | same | Passing | Pressure >10bar → EMERGENCY |
-| `test_solenoid_front_timeout` | same | Passing | Rear not unloaded >5s → EMERGENCY |
-| `test_handle_state_transition` | same | Passing | Initial_Sequence → Monitor_sequence |
+| State machine + dbc_decode (12 tests) | `tests/test_state_machine.c` | PASS | Covers Handle_state, Handle_autonomous_state, mission mismatch debounce, dbc_decode for 4 CAN frames, EMERGENCY recovery, Finish transition |
+| Initial sequence (5 tests) | `tests/test_initial_sequence.c` | PASS | Covers all 8 startup stages (WDT→READY) including normal, timeout, out-of-range, solenoid timeout |
+| Autonomous functions (24 assertions) | `tests/test_autonomous_functions.c` | PASS | Covers check_timeout, ASSI_control (all 5 states), module_timeout (all 5 modules), continuous_monitoring (4 scenarios) |
+| BLE config FSM (8 tests) | `tests/test_ble_config.c` | PASS | Covers RN4871 config command sequence (SN, SR, R,1) with done state 5 |
+| ADC callbacks (19 assertions) | `tests/test_adc_callbacks.c` | PASS | |
+| CAN queue (52 assertions) | `tests/test_can_queue.c` | PASS | |
+| EMA filter (5 assertions) | `tests/test_ema_filter.c` | PASS | |
+| Logger (154 assertions) | `tests/test_logger.c` | PASS | |
+| Ring buffer (549 assertions) | `tests/test_ring_buffer.c` | PASS | |
+| T26 CAN pack/unpack (9 assertions) | `tests/test_autonomous_t26.c` | PASS | |
+| Temperature conversion (5 assertions) | `tests/test_temperature.c` | PASS | |
+| TIM callback (50 assertions) | `tests/test_tim_callback.c` | PASS | |
+| UART callbacks (16 assertions) | `tests/test_uart_callbacks.c` | PASS | |
 
-**Missing tests:** Monitor_sequence, Handle_state, Handle_Emergency, continuous_monitoring, BLE handler, CAN decode, EMERGENCY→IDLE recovery.
+**Total: 13/13 test suites pass (2026-06-19)**
+
+**Not tested but testable without HW:**
+- `ble_handler.c` — BLE FSM (BLE_IDLE → BLE_WAIT_CONFIG → BLE_BRIDGE), telemetry formatting, DMA TX busy flag behavior. 
+- `toggle_wdt()` — simple 10ms WDT toggle timing, no dedicated test exists.
+- `emergency_blame()` — empty function body, undefined behavior if called, not tested anywhere.
+- `Handle_Emergency()` — production version has HAL_GPIO_WritePin calls that must be stubbed. Test should verify post-conditions (solenoids=0, Emergency=1, Ignition_Request=0).
+- `add_can_message()` bounds check — stubs needed to verify index never exceeds 63.
+- State machine re-entry edge cases — statics after EMERGENCY→IDLE→AS_ON (mismatch_tick/mismatch_active, as_on_first_time).
+- Mission mismatch with simultaneous CAN timeout scenarios.

@@ -6,15 +6,15 @@
  */
 
 #include "ble_handler.h"
-#include "rn4871.h"
+#include "APP.h"
 #include "hardware_abstraction.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 extern UART_HandleTypeDef huart2;
-extern RTC_HandleTypeDef  hrtc;
 extern struct car t24;
+extern Main_state_machine_t Vehicle_state_machine;
 
 /* ── DMA RX circular buffer ─────────────────────────────────────────────── */
 
@@ -23,12 +23,14 @@ static uint16_t rx_head = 0;        // our read position in the circular buffer
 
 static uint8_t  ble_tx_buf[BLE_TX_BUF_SIZE];
 
+/* ── Shared TX busy flag (non-static — referenced by main.c TIM2 ISR) ────── */
+volatile uint8_t ble_tx_busy = 0;
+static uint32_t  ble_tx_tick = 0;
+
 /* ── State ───────────────────────────────────────────────────────────────── */
 
 static BLE_STATE_MACHINE_t ble_state     = BLE_IDLE;
-static CTS_Result          ble_result    = CTS_RESULT_PENDING;
 static uint32_t            state_tick    = 0;
-static uint8_t             time_synced   = 0;
 
 /* ── Log flush state ─────────────────────────────────────────────────────── */
 
@@ -40,8 +42,27 @@ static uint8_t  flush_index   = 0;
 
 /* ── Internal helpers ────────────────────────────────────────────────────── */
 
-static void ble_send(const char *s) {
-    HAL_UART_Transmit(&huart2, (uint8_t*)s, strlen(s), 100);
+static void ble_send_dma(const char *s) {
+    /* ── critical section: atomic check-and-set ── */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    if (ble_tx_busy) {
+        __set_PRIMASK(primask);
+        return;                     /* drop — DMA still busy with previous TX */
+    }
+    ble_tx_busy = 1;
+    ble_tx_tick = HAL_GetTick();
+    __set_PRIMASK(primask);
+    /* ── copy and start DMA ── */
+    size_t len = strlen(s);
+    if (len >= sizeof(ble_tx_buf)) {
+        len = sizeof(ble_tx_buf) - 1;   /* clamp to fit buffer (keep room for NUL) */
+    }
+    memcpy(ble_tx_buf, s, len);
+    ble_tx_buf[len] = '\0';
+    if (HAL_UART_Transmit_DMA(&huart2, ble_tx_buf, len) != HAL_OK) {
+        ble_tx_busy = 0;               /* rollback on failure */
+    }
 }
 
 static void go_to(BLE_STATE_MACHINE_t s) {
@@ -90,58 +111,51 @@ static uint16_t rx_read(char *dst, uint16_t max) {
     return n;
 }
 
-/* Fall through to EXIT_CMD on any failure — bridge always starts */
-static void abort_to_exit(CTS_Result r) {
-    ble_result = r;
-    go_to(BLE_EXIT_CMD);
+/* ── Enum-to-string helpers ──────────────────────────────────────────────── */
+
+static const char* state_name(Main_state_machine_t s) {
+    switch(s) {
+        case Start: return "START";
+        case IDLE:  return "IDLE";
+        case AS_ON: return "AS_ON";
+        case EMERGENCY: return "EMERGENCY";
+        default: return "?";
+    }
 }
 
-/* ── CTS byte parser ─────────────────────────────────────────────────────── */
-
-/* RN4871 CHR response format: "CHR,<handle>,<len>,<hexbytes>\r\n"
-   CTS payload (0x2A2B), 10 bytes:
-     [0-1] year (LE uint16), [2] month, [3] day,
-     [4] hour, [5] min, [6] sec, [7] day-of-week, [8-9] fractions  */
-static uint8_t parse_cts_and_set_rtc(const char *raw) {
-    /* Find hex payload — third comma onwards */
-    uint8_t commas = 0;
-    const char *p = raw;
-    while (*p && commas < 3) {
-        if (*p++ == ',') commas++;
+static const char* as_state_name(AS_STATE_t s) {
+    switch(s) {
+        case AS_STATE_OFF:       return "OFF";
+        case AS_STATE_READY:     return "READY";
+        case AS_STATE_DRIVING:   return "DRIVING";
+        case AS_STATE_EMERGENCY: return "EMERGENCY";
+        case AS_STATE_FINISHED:  return "FINISHED";
+        default: return "?";
     }
-    if (commas < 3 || strlen(p) < 14) return 0;
+}
 
-    uint8_t b[7];
-    for (int i = 0; i < 7; i++) {
-        char hex[3] = { p[i*2], p[i*2+1], '\0' };
-        b[i] = (uint8_t)strtol(hex, NULL, 16);
+static const char* mission_name(current_mission_t m) {
+    switch(m) {
+        case MANUAL:       return "MANUAL";
+        case ACCELERATION: return "ACCELERATION";
+        case SKIDPAD:      return "SKIDPAD";
+        case TRACKDRIVE:   return "TRACKDRIVE";
+        case EBS_TEST:     return "EBS_TEST";
+        case INSPECTION:   return "INSPECTION";
+        case AUTOCROSS:    return "AUTOCROSS";
+        default: return "?";
     }
+}
 
-    uint16_t year  = b[0] | ((uint16_t)b[1] << 8);
-    uint8_t  month = b[2];
-    uint8_t  day   = b[3];
-    uint8_t  hour  = b[4];
-    uint8_t  min   = b[5];
-    uint8_t  sec   = b[6];
-
-    /* Sanity check before touching RTC */
-    if (year < 2024 || year > 2099) return 0;
-    if (month < 1   || month > 12)  return 0;
-    if (day   < 1   || day   > 31)  return 0;
-    if (hour  > 23  || min   > 59 || sec > 59) return 0;
-
-    RTC_TimeTypeDef t = {0};
-    RTC_DateTypeDef d = {0};
-    t.Hours   = hour;
-    t.Minutes = min;
-    t.Seconds = sec;
-    d.Year    = (uint8_t)(year - 2000);
-    d.Month   = month;
-    d.Date    = day;
-
-    HAL_RTC_SetTime(&hrtc, &t, RTC_FORMAT_BIN);
-    HAL_RTC_SetDate(&hrtc, &d, RTC_FORMAT_BIN);
-    return 1;
+static const char* assi_state_name(uint8_t a) {
+    switch(a) {
+        case AS_STATE_OFF:       return "OFF";
+        case AS_STATE_READY:     return "YELLOW";
+        case AS_STATE_DRIVING:   return "YELLOW FLASH";
+        case AS_STATE_EMERGENCY: return "BLUE FLASH";
+        case AS_STATE_FINISHED:  return "BLUE";
+        default: return "?";
+    }
 }
 
 /* ── EEPROM log flush helpers ────────────────────────────────────────────── */
@@ -169,114 +183,124 @@ static void flush_one_record(uint8_t index) {
        int len = snprintf(ble_tx_buf, sizeof(ble_tx_buf), ...);
        HAL_UART_Transmit(&huart2, ble_tx_buf, len, 500);  */
 
-    /* Placeholder so code compiles now */
+    /* ── critical section: atomic check-and-set ── */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    if (ble_tx_busy) {
+        __set_PRIMASK(primask);
+        return;                     /* drop this record, next tick will retry */
+    }
+    ble_tx_busy = 1;
+    ble_tx_tick = HAL_GetTick();
+    __set_PRIMASK(primask);
+    /* ── format and start DMA ── */
     int len = snprintf((char*)ble_tx_buf, sizeof(ble_tx_buf),
                        "SLOT:%u (EEPROM not yet implemented)\r\n---\r\n",
                        index);
-    HAL_UART_Transmit(&huart2, ble_tx_buf, len, 500);
+    if (HAL_UART_Transmit_DMA(&huart2, ble_tx_buf, len) != HAL_OK) {
+        ble_tx_busy = 0;               /* rollback on failure */
+    }
 }
 
 /* ── Periodic telemetry TX ───────────────────────────────────────────────── */
 
 static void send_telemetry_log(void) {
+    /* ── critical section: atomic check-and-set (snprintf kept outside) ── */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    if (ble_tx_busy) {
+        __set_PRIMASK(primask);
+        return;                     /* skip this tick — next one in 1 s */
+    }
+    ble_tx_busy = 1;
+    ble_tx_tick = HAL_GetTick();
+    __set_PRIMASK(primask);
     int len = snprintf((char*)ble_tx_buf, sizeof(ble_tx_buf),
-        "TEMP:%.2f REAR_P:%.2f FRONT_P:%.2f STATE:%u MISSION:%u\r\n",
-        t24.chip_temp,
-        t24.Rear_Pressure.Pneumatic,
+        "\r\n"
+        "====================================\r\n"
+        "      ACU V3.0 TELEMETRY\r\n"
+        "====================================\r\n"
+        "State: %s | AS: %s | Mission: %s\r\n"
+        "Front:  Pneu=%.1f bar  Hyd=%.1f bar\r\n"
+        "Rear:   Pneu=%.1f bar  Hyd=%.1f bar\r\n"
+        "Sol:    Front=%s  Rear=%s\r\n"
+        "Speed:  %u km/h  |  RPM: %d\r\n"
+        "Temp:   %.1f C\r\n"
+        "SDC:    %s  |  Ignition: %s\r\n"
+        "ASMS:   %s  |  ASSI: %s\r\n"
+        "Emergency: %s  |  Res: %u\r\n"
+        "====================================\r\n",
+        state_name(Vehicle_state_machine),
+        as_state_name(t24.Autonomous_State),
+        mission_name(t24.Current_Mission),
         t24.Front_Pressure.Pneumatic,
-        (uint8_t)t24.Autonomous_State,
-        (uint8_t)t24.Current_Mission);
+        t24.Front_Pressure.Hydraulic,
+        t24.Rear_Pressure.Pneumatic,
+        t24.Rear_Pressure.Hydraulic,
+        t24.front_solenoid ? "ON " : "OFF",
+        t24.rear_solenoid  ? "ON " : "OFF",
+        (unsigned int)t24.Speed.Speed, t24.rpm,
+        (double)t24.chip_temp,
+        t24.SDC_feedback ? "OK" : "OPEN",
+        t24.Ignition_Status ? "ON" : "OFF",
+        t24.ASMS ? "ON" : "OFF",
+        assi_state_name(t24.ASSI_state),
+        t24.Emergency ? "ACTIVE" : "NONE",
+        (unsigned int)t24.Res
+    );
+    if (HAL_UART_Transmit_DMA(&huart1, ble_tx_buf, len) != HAL_OK) {
+        ble_tx_busy = 0;               /* rollback on failure */
+    }
+}
 
-    HAL_UART_Transmit_DMA(&huart2, ble_tx_buf, len);
+/* ── Binary telemetry TX (called from TIM2 ISR context at 10 Hz) ─────────── */
+
+HAL_StatusTypeDef ble_send_binary(const uint8_t *data, uint16_t len) {
+    /* ── critical section: atomic check-and-set ── */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    if (ble_tx_busy) {
+        __set_PRIMASK(primask);
+        return HAL_BUSY;            /* drop — DMA still busy with previous TX */
+    }
+    ble_tx_busy = 1;
+    ble_tx_tick = HAL_GetTick();
+    __set_PRIMASK(primask);
+    /* ── start DMA (data lives in caller's scope, e.g. static pkt in TIM2 ISR) ── */
+    if (HAL_UART_Transmit_DMA(&huart2, (uint8_t*)data, len) != HAL_OK) {
+        ble_tx_busy = 0;               /* rollback on failure */
+        return HAL_ERROR;
+    }
+    return HAL_OK;
 }
 
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
 void ble_handler_init(void) {
-    /* Start DMA circular RX — runs forever, never needs restarting */
-    HAL_UART_Receive_DMA(&huart2, dma_rx, BLE_RX_BUF_SIZE);
-    go_to(BLE_ENTER_CMD);
+    /* Start DMA circular RX — runs forever, never needs restarting.
+       NOTE: this takes over UART2 RX from the earlier idle-line setup in main.c.
+       The idle-line DMA is intentionally overridden — circular RX is what
+       ble_handler needs to parse multi-byte commands without per-byte interrupts. */
+    HAL_UART_Receive_DMA(&huart1, dma_rx, BLE_RX_BUF_SIZE);
+    go_to(BLE_WAIT_CONFIG);
 }
 
 void ble_handler(void) {
-    char cmd_buf[64];
-    int  len;
-
     switch (ble_state) {
 
-    /* ── Boot sequence: CTS time sync ──────────────────────────────────── */
-
-    case BLE_IDLE:
-        /* Should not stay here — init moves us to ENTER_CMD */
-        go_to(BLE_ENTER_CMD);
-        break;
-
-    case BLE_ENTER_CMD:
-        /* $$$ has NO \r\n — this is intentional */
-        HAL_UART_Transmit(&huart2, (uint8_t*)"$$$", 3, 100);
-        go_to(BLE_CONNECT);     // reuse enum as WAIT_CMD state
-        /* NOTE: we repurpose BLE_CONNECT momentarily as WAIT_CMD
-           Add BLE_WAIT_CMD to your enum for cleaner code */
-        break;
-
-    case BLE_CONNECT:
-        /* Waiting for "CMD>" then sending connect command */
-        if (rx_contains("CMD>")) {
-            len = rn4871_connect(cmd_buf, sizeof(cmd_buf),
-                                 BLE_MAC, BLE_MAC_ADDR_TYPE);
-            if (len > 0) ble_send(cmd_buf);
-            go_to(BLE_READ_CURRENT_TIME);   // repurposed as WAIT_CONNECTED
-        } else if (timed_out(TIMEOUT_CMD_MS)) {
-            abort_to_exit(CTS_RESULT_TIMEOUT);
+    case BLE_WAIT_CONFIG:
+        if (ble_module_config_is_done() == 5) {
+            go_to(BLE_BRIDGE);
         }
         break;
-
-    case BLE_READ_CURRENT_TIME:
-        /* Waiting for "CONNECTED" then reading CTS characteristic */
-        if (rx_contains("CONNECTED")) {
-            HAL_Delay(300);     // let connection settle
-            /* 0x000B is the typical CTS handle — verify with your phone */
-            /* TODO: optionally do LS command first to discover handle */
-            len = rn4871_read_remote_char(cmd_buf, sizeof(cmd_buf), 0x000B);
-            if (len > 0) ble_send(cmd_buf);
-            go_to(BLE_PROCESS_DATE);    // repurposed as WAIT_CTS
-        } else if (timed_out(TIMEOUT_CONNECT_MS)) {
-            abort_to_exit(CTS_RESULT_NO_DEVICE);
-        }
-        break;
-
-    case BLE_PROCESS_DATE:
-        /* Waiting for CHR response, then parsing */
-        if (rx_contains("CHR")) {
-            char raw[BLE_RX_BUF_SIZE];
-            rx_read(raw, sizeof(raw));
-            if (parse_cts_and_set_rtc(raw)) {
-                time_synced = 1;
-                ble_result  = CTS_RESULT_OK;
-            } else {
-                ble_result  = CTS_RESULT_PARSE_ERROR;
-            }
-            go_to(BLE_EXIT_CMD);
-        } else if (rx_contains("ERR") || rx_contains("DISCONNECT")) {
-            abort_to_exit(CTS_RESULT_PARSE_ERROR);
-        } else if (timed_out(TIMEOUT_CTS_MS)) {
-            abort_to_exit(CTS_RESULT_TIMEOUT);
-        }
-        break;
-
-    case BLE_EXIT_CMD:
-        /* Disconnect and return to transparent bridge mode */
-        len = rn4871_disconnect(cmd_buf, sizeof(cmd_buf));
-        if (len > 0) ble_send(cmd_buf);
-        HAL_Delay(200);
-        len = rn4871_cmd_exit_mode(cmd_buf, sizeof(cmd_buf));
-        if (len > 0) ble_send(cmd_buf);
-        go_to(BLE_BRIDGE);
-        break;
-
-    /* ── Normal operation: bridge mode ─────────────────────────────────── */
 
     case BLE_BRIDGE: {
+
+        /* 0. DMA timeout recovery — abort if TX stuck >500 ms */
+        if (ble_tx_busy && (HAL_GetTick() - ble_tx_tick > 500)) {
+            HAL_UART_AbortTransmit(&huart2);  /* abort TX only — preserves circular RX DMA */
+            ble_tx_busy = 0;
+        }
 
         /* 1. Check for incoming commands from phone */
         if (rx_contains("stop\r\n")) {
@@ -288,33 +312,31 @@ void ble_handler(void) {
             logs_paused  = 1;
             flushing     = 1;
             flush_index  = 0;
-            /* Send header so phone knows dump is starting */
-            ble_send("=== EVENT LOG ===\r\n");
+            ble_send_dma("=== EVENT LOG ===\r\n");
         }
 
-        /* 2. If flushing: send one record per tick, never block */
+        /* 2. If flushing: send one record per tick */
         if (flushing) {
             if (flush_index < MAX_EVENTS) {
                 flush_one_record(flush_index);
                 flush_index++;
             } else {
-                /* Flush complete */
-                ble_send("=== END LOG ===\r\n");
+                ble_send_dma("=== END LOG ===\r\n");
                 flushing    = 0;
                 logs_paused = 0;
             }
-            break;   // skip telemetry this tick while flushing
+            break;
         }
 
-        /* 3. Periodic telemetry — only when not paused */
+        /* 3. Periodic telemetry — every 1000ms when not paused */
         if (!logs_paused) {
             static uint32_t log_tick = 0;
-            if (millis() - log_tick > 1000) {
+            uint32_t time_temp = millis();
+            if (time_temp - log_tick > 1000) {
                 send_telemetry_log();
                 log_tick = millis();
             }
         }
-
         break;
     }
 
@@ -324,6 +346,10 @@ void ble_handler(void) {
     }
 }
 
-uint8_t ble_time_synced(void) {
-    return time_synced;
+/* ── UART TX complete callback ────────────────────────────────────────────── */
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART2) {
+        ble_tx_busy = 0;
+    }
 }

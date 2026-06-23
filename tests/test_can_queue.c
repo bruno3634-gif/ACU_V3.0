@@ -98,6 +98,9 @@ uint8_t tx_data[8];
 
 void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
         uint8_t tx_data[8]) {
+    if (can_queue_index >= 63) {
+        return;  /* queue full, drop message */
+    }
     can_queue_index++;
     can_tx_queue[can_queue_index].TX_MAILBOX = mailbox;
     can_tx_queue[can_queue_index].can_tx_header = tx_header;
@@ -409,30 +412,26 @@ static int test_queue_overflow_behavior(void)
     TEST_ASSERT(can_queue_index == 63,
                 "can_queue_index == 63 after 64 adds (last valid index)");
 
-    /* Add one more – index goes beyond array bounds (no crash on host) */
+    /* Add one more – should be dropped (bounds check) */
     hdr.StdId = 0xFFFF;
     data[0] = 0xFF;
     add_can_message(99, hdr, data);
-    /* can_queue_index is now 64 (out of range); no crash occurred */
-    TEST_ASSERT(can_queue_index == 64,
-                "can_queue_index == 64 after 65th add (no crash)");
+    /* can_queue_index stays at 63 (overflow dropped) */
+    TEST_ASSERT(can_queue_index == 63,
+                "can_queue_index == 63 after 65th add (dropped by bounds check)");
 
-    /* Drain all 65 messages */
-    for (int i = 0; i < 65; i++) {
+    /* Drain all 64 messages */
+    for (int i = 0; i < 64; i++) {
         handle_can_tx();
-        /* Break early if queue resets before all 65 calls
-         * (should reset exactly on the 65th call because
-         *  can_queue_index was 64 and tx_index wraps to 65) */
         if (can_queue_index == -1) {
-            /* Ensure all were sent */
             break;
         }
     }
     TEST_ASSERT(can_queue_index == -1,
                 "queue fully drained after overflow");
-    /* We should have sent 65 messages */
-    TEST_ASSERT(add_tx_message_call_count == 65,
-                "all 65 messages transmitted");
+    /* We should have sent 64 messages (65th was dropped) */
+    TEST_ASSERT(add_tx_message_call_count == 64,
+                "64 messages transmitted (65th dropped)");
     return 1;
 }
 

@@ -1,10 +1,13 @@
 #include "state_machine.h"
 
-
+/* ── Mission-mismatch debounce state (file-scope so it can be reset on re-entry) ── */
+static uint32_t mismatch_tick    = 0;
+static uint8_t  mismatch_active  = 0;
 
 void Handle_autonomous_state() {
 	switch (Autonomous_state) {
 	case Initial_Sequence:
+		mismatch_active = 0;  /* reset mismatch debounce on fresh startup cycle */
 		initial_sequence(&t24, &startup_sequence_state, &Vehicle_state_machine);
 		if (t24.Autonomous_State == AS_STATE_READY) {
 			Autonomous_state = Monitor_sequence;
@@ -14,9 +17,17 @@ void Handle_autonomous_state() {
 		continuous_monitoring(t24.SDC_feedback,
 			t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,
 			t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
-		if(t24.Current_Mission != t24.Jetson_mission){
-			Vehicle_state_machine = EMERGENCY;
-		}else if(t24.Autonomous_State == AS_STATE_FINISHED){
+		if (t24.Current_Mission != t24.Jetson_mission) {
+			if (!mismatch_active) {
+				mismatch_active = 1;
+				mismatch_tick = millis();
+			} else if (millis() - mismatch_tick >= 1000) {
+				Vehicle_state_machine = EMERGENCY;
+			}
+		} else {
+			mismatch_active = 0;  /* mission match restored -> reset debounce */
+		}
+		if(t24.Autonomous_State == AS_STATE_FINISHED){
 			Autonomous_state = Finish;
 		}
 		break;

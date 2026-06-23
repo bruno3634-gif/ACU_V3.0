@@ -17,14 +17,17 @@ TEST_SRCS=(
     tests/test_autonomous_functions.c
     tests/test_autonomous_t26.c
     tests/test_ble_config.c
+    tests/test_ble_handler.c
     tests/test_can_queue.c
     tests/test_ema_filter.c
+    tests/test_handle_emergency.c
     tests/test_initial_sequence.c
     tests/test_logger.c
     tests/test_ring_buffer.c
     tests/test_state_machine.c
     tests/test_temperature.c
     tests/test_tim_callback.c
+    tests/test_toggle_wdt.c
     tests/test_uart_callbacks.c
 )
 

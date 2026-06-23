@@ -279,6 +279,6 @@ uint8_t module_timeout(){
 	return NO_TIMEOUT;
 }
 
-uint32_t emergency_blame(){
-
+uint32_t emergency_blame(void) {
+    return (uint32_t)Emergency_cause;
 }

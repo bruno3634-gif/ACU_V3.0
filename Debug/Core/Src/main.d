@@ -46,7 +46,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Core/Inc/hardware_abstraction.h ../Core/Inc/autonomous_t26.h \
  ../Core/Inc/rn4871.h ../Core/Inc/EMA_Filter.h \
  E:/stm32_workspace_formula/ACU_V3.0/Drivers/24FC08/ee24.h \
- E:/stm32_workspace_formula/ACU_V3.0/Drivers/24FC08/NimaLTD.I-CUBE-EE24_conf.h
+ E:/stm32_workspace_formula/ACU_V3.0/Drivers/24FC08/NimaLTD.I-CUBE-EE24_conf.h \
+ ../Core/Inc/ble_handler.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -113,3 +114,4 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/EMA_Filter.h:
 E:/stm32_workspace_formula/ACU_V3.0/Drivers/24FC08/ee24.h:
 E:/stm32_workspace_formula/ACU_V3.0/Drivers/24FC08/NimaLTD.I-CUBE-EE24_conf.h:
+../Core/Inc/ble_handler.h:

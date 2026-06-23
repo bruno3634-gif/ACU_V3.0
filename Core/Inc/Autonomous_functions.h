@@ -34,5 +34,6 @@ void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic, float Front
 int ASSI_control(uint8_t gpio_state, uint8_t ASSI_state);
 bool check_timeout(uint32_t start_time, uint32_t limit);
 uint8_t module_timeout();
+uint32_t emergency_blame(void);
 
 #endif /* INC_AUTONOMOUS_FUNCTIONS_H_ */

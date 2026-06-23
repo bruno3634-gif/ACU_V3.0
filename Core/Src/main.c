@@ -39,6 +39,7 @@
 #include "EMA_Filter.h"
 #include <stdio.h>
 #include "ee24.h"
+#include "ble_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -81,12 +82,10 @@ ema_data_structure ema_front_pressure;
 
 /* USER CODE BEGIN PV */
 
-static volatile uint8_t ble_tx_busy = 0;
-static uint32_t         ble_tx_tick     = 0;
-
 struct can_queue can_tx_queue[64];
 int can_queue_index = -1;
 uint8_t mission_selector_enable = 0;
+EE24_HandleTypeDef hee24;
 
 CAN_TxHeaderTypeDef can_tx_header;
 
@@ -102,12 +101,6 @@ float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART2) {
-        ble_tx_busy = 0;
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -149,7 +142,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE);
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE);  /* will be overridden by ble_handler_init() */
 	uint32_t state = huart2.RxState;  // should be 0x22 (BUSY_RX)
 	uint32_t dma_ndtr = hdma_usart2_rx.Instance->NDTR;
 	ema_init(&ema_front_pressure, 0.5f);
@@ -270,7 +263,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		AS_data.asms = t24.ASMS;
 		AS_data.assi_state = t24.ASSI_state;
 		AS_data.emergency = t24.Emergency;
-		AS_data.ign = t24.Ignition_Request;
+		//AS_data.ign = t24.Ignition_Request;
+		AS_data.ign = t24.ignition_pin_state;
 		AS_data.mission_select = t24.Current_Mission;
 		AS_data.acu_state = (uint8_t)Vehicle_state_machine;
 		AS_data.emergency_cause = Emergency_cause;
@@ -303,35 +297,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 
-		/* ── BLE telemetry: 15-byte packet every TIM2 tick (10 Hz) ── */
-		/* DMA timeout recovery: if TX stuck >500ms, abort and reset */
-		if (ble_tx_busy && (HAL_GetTick() - ble_tx_tick > 500)) {
-		    HAL_UART_Abort(&huart2);
-		    ble_tx_busy = 0;
+		/* ── BLE telemetry: 15-byte binary packet via ble_handler ── */
+		if (!ble_module_config_is_done()) {
+		    return;
 		}
-		if (ble_module_config_is_done() && !ble_tx_busy) {
-		    static ble_telemetry_packet_t pkt;
-		    pkt.state_machine      = (uint8_t)Vehicle_state_machine;
-		    pkt.assi_status        = t24.ASSI_state;
-		    pkt.mission            = (uint8_t)t24.Current_Mission;
-		    {   float _v = t24.Front_Pressure.Hydraulic * 100.0f;
-		        pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		    {   float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
-		        pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		    {   float _v = t24.Front_Pressure.Pneumatic * 100.0f;
-		        pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		    {   float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
-		        pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		    {   float _v = t24.chip_temp * 100.0f;
-		        pkt.chip_temp = (_v > 32767.0f) ? 32767 : (_v < -32768.0f) ? -32768 : (int16_t)_v; }
-pkt.solenoid_front     = t24.front_solenoid;
-		pkt.solenoid_rear      = t24.rear_solenoid;
-
-		    if (HAL_UART_Transmit_DMA(&huart2, (uint8_t*)&pkt, sizeof(pkt)) == HAL_OK) {
-		        ble_tx_busy = 1;
-		        ble_tx_tick = HAL_GetTick();
-		    }
+		if (ble_tx_busy) {
+		    return;                 /* still sending previous packet, skip this tick */
 		}
+		static ble_telemetry_packet_t pkt;
+		pkt.state_machine      = (uint8_t)Vehicle_state_machine;
+		pkt.assi_status        = t24.ASSI_state;
+		pkt.mission            = (uint8_t)t24.Current_Mission;
+		{   float _v = t24.Front_Pressure.Hydraulic * 100.0f;
+		    pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		{   float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
+		    pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		{   float _v = t24.Front_Pressure.Pneumatic * 100.0f;
+		    pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		{   float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
+		    pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
+		{   float _v = t24.chip_temp * 100.0f;
+		    pkt.chip_temp = (_v > 32767.0f) ? 32767 : (_v < -32768.0f) ? -32768 : (int16_t)_v; }
+		pkt.solenoid_front   = t24.front_solenoid;
+		pkt.solenoid_rear    = t24.rear_solenoid;
+		ble_send_binary((uint8_t*)&pkt, sizeof(pkt));
 	}
 }
 
@@ -355,7 +344,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-	if (huart->Instance == USART2) {
+	if (huart->Instance == USART1) {
 		char cmd[RX_BUFFER_SIZE] = { 0 };
 
 		uint8_t j = 0;

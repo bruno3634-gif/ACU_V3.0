@@ -8,24 +8,17 @@
 #ifndef INC_BLE_HANDLER_H_
 #define INC_BLE_HANDLER_H_
 #include "main.h"
-
-
 #include "stm32f4xx_hal.h"
-#include "main.h"
-
-#define BLE_MAC             "AABBCCDDEEFF"   // TODO: load from EEPROM
-#define BLE_MAC_ADDR_TYPE   0               // 0 = public, 1 = random
 
 #define BLE_RX_BUF_SIZE     256
 #define BLE_TX_BUF_SIZE     512
 
 #define TIMEOUT_CMD_MS      1000
-#define TIMEOUT_CONNECT_MS  8000
-#define TIMEOUT_CTS_MS      3000
+
+extern volatile uint8_t ble_tx_busy;
 
 void ble_handler_init(void);
 void ble_handler(void);
-
-uint8_t ble_time_synced(void);
+HAL_StatusTypeDef ble_send_binary(const uint8_t *data, uint16_t len);
 
 #endif /* INC_BLE_HANDLER_H_ */

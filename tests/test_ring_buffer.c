@@ -105,27 +105,31 @@ void can_buffer_push(struct ring *ring_buffer, CAN_TxHeaderTypeDef  tx_header,
 		uint8_t data[8])
 {
 	if (ring_buffer->counter >= MAX_SIZE) {
-		return;
+		/* Buffer full — advance tail to discard oldest entry */
+		ring_buffer->tail = (ring_buffer->tail + 1) % MAX_SIZE;
+	} else {
+		ring_buffer->counter++;
 	}
 	ring_buffer->queue[ring_buffer->head].can_tx_header = tx_header;
 	memcpy(ring_buffer->queue[ring_buffer->head].tx_data, data, 8);
 
 	ring_buffer->head = (ring_buffer->head + 1) % MAX_SIZE;
-	ring_buffer->counter++;
 }
 
 void can_rx_buffer_push(struct ring *ring_buffer, CAN_RxHeaderTypeDef  tx_header,
 		uint8_t data[8])
 {
 	if (ring_buffer->counter >= MAX_SIZE) {
-		return;
+		/* Buffer full — advance tail to discard oldest entry */
+		ring_buffer->tail = (ring_buffer->tail + 1) % MAX_SIZE;
+	} else {
+		ring_buffer->counter++;
 	}
 	ring_buffer->queue[ring_buffer->head].arrival_time = HAL_GetTick();
 	ring_buffer->queue[ring_buffer->head].can_rx_header = tx_header;
 	memcpy(ring_buffer->queue[ring_buffer->head].tx_data, data, 8);
 
 	ring_buffer->head = (ring_buffer->head + 1) % MAX_SIZE;
-	ring_buffer->counter++;
 }
 
 void can_buffer_pop(struct ring *ring_buffer, uint8_t tx_or_rx,struct can_queue *can_rx)
@@ -265,23 +269,51 @@ static int test_multiple_pushes(void)
 }
 
 /* ------------------------------------------------------------------
- * TEST 5: Full buffer drops excess data.
+ * TEST 5: Full buffer overwrites oldest entries.
  * ------------------------------------------------------------------ */
-static int test_full_buffer_drops(void)
+static int test_full_buffer_overwrites(void)
 {
-	printf("\n--- TEST 5: Full buffer drops data ---\n");
+	printf("\n--- TEST 5: Full buffer overwrites oldest entries ---\n");
 	struct ring buf;
 	can_buffer_init(&buf);
 
-	for (int i = 0; i < MAX_SIZE + 10; i++) {
+	/* Fill buffer with StdId 0 .. MAX_SIZE-1 */
+	for (int i = 0; i < MAX_SIZE; i++) {
 		CAN_TxHeaderTypeDef hdr = { .StdId = (uint32_t)i, .RTR = 0, .DLC = 8 };
 		uint8_t data[8] = {0};
 		can_buffer_push(&buf, hdr, data);
 	}
 	TEST_ASSERT(buf.counter == MAX_SIZE,
-		    "counter == MAX_SIZE after overflow pushes");
+		    "counter == MAX_SIZE after fill");
+
+	/* Push 10 MORE entries — these should overwrite the oldest 10 */
+	for (int i = 0; i < 10; i++) {
+		CAN_TxHeaderTypeDef hdr = { .StdId = (uint32_t)(MAX_SIZE + i), .RTR = 0, .DLC = 8 };
+		uint8_t data[8] = {0};
+		can_buffer_push(&buf, hdr, data);
+	}
+	TEST_ASSERT(buf.counter == MAX_SIZE,
+		    "counter still MAX_SIZE after overwrite pushes");
 	TEST_ASSERT(buf.head == buf.tail,
-		    "head == tail when full (wrapped around)");
+		    "head == tail when full (head and tail advance in lockstep)");
+
+	/* Pop one — the oldest surviving entry should be StdId 10,
+	 * because StdId 0..9 were overwritten. */
+	{
+		struct can_queue out;
+		memset(&out, 0, sizeof(out));
+		can_buffer_pop(&buf, 0, &out);
+		TEST_ASSERT(out.can_tx_header.StdId == 10,
+			    "first popped entry has StdId == 10 (oldest 10 were overwritten)");
+	}
+	/* Pop another — should be StdId 11 */
+	{
+		struct can_queue out;
+		memset(&out, 0, sizeof(out));
+		can_buffer_pop(&buf, 0, &out);
+		TEST_ASSERT(out.can_tx_header.StdId == 11,
+			    "second popped entry has StdId == 11");
+	}
 	return 1;
 }
 
@@ -438,7 +470,7 @@ int main(void)
 		test_push_increments_counter,
 		test_push_and_rx_pop,
 		test_multiple_pushes,
-		test_full_buffer_drops,
+		test_full_buffer_overwrites,
 		test_empty_pop,
 		test_wrap_around,
 		test_rx_push_arrival_time,
@@ -448,7 +480,7 @@ int main(void)
 		"TEST 2: Push increments counter",
 		"TEST 3: Push and RX-pop returns same data",
 		"TEST 4: Multiple pushes without pop",
-		"TEST 5: Full buffer drops data",
+		"TEST 5: Full buffer overwrites oldest entries",
 		"TEST 6: Empty buffer pop does nothing",
 		"TEST 7: Wrap-around behavior",
 		"TEST 8: RX push stores arrival_time",

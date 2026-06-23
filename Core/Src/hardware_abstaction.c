@@ -43,6 +43,7 @@ void Peripheral_aquisition(uint8_t *assi_leds) {
 			| HAL_GPIO_ReadPin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin);
 
 
+
 	mission_selector_enable = !t24.ASMS;
 }
 
@@ -57,8 +58,8 @@ void Peripheral_actuation() {
 					!t24.front_solenoid);
 
 	extern uint8_t ASSI_leds_control_signal;
-	HAL_GPIO_WritePin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin, ASSI_leds_control_signal && 0b00000010);
-	HAL_GPIO_WritePin(ASSI_YELLOW_GPIO_Port, ASSI_YELLOW_Pin, ASSI_leds_control_signal && 0b00000001);
+	HAL_GPIO_WritePin(ASSI_BLUE_GPIO_Port, ASSI_BLUE_Pin, ASSI_leds_control_signal & 0b00000010);
+	HAL_GPIO_WritePin(ASSI_YELLOW_GPIO_Port, ASSI_YELLOW_Pin, ASSI_leds_control_signal & 0b00000001);
 }
 
 
@@ -81,6 +82,9 @@ void handle_can_tx() {
 
 void add_can_message(uint32_t mailbox, CAN_TxHeaderTypeDef tx_header,
 		uint8_t tx_data[8]) {
+	if (can_queue_index >= 63) {
+		return;  /* queue full, drop message */
+	}
 	can_queue_index++;
 	can_tx_queue[can_queue_index].TX_MAILBOX = mailbox;
 	can_tx_queue[can_queue_index].can_tx_header = tx_header;

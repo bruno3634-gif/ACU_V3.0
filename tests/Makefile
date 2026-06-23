@@ -3,7 +3,8 @@ CFLAGS = -Wall -Wextra -std=c11 -lm
 
 TEST_SRCS := $(wildcard tests/test_*.c)
 TARGETS := tests/test_initial_sequence tests/test_ema_filter tests/test_autonomous_t26 \
-           tests/test_ring_buffer tests/test_autonomous_functions tests/test_logger
+           tests/test_ring_buffer tests/test_autonomous_functions tests/test_logger \
+           tests/test_toggle_wdt tests/test_handle_emergency tests/test_ble_handler
 
 ifneq ($(wildcard tests/test_state_machine.c),)
   TARGETS += tests/test_state_machine

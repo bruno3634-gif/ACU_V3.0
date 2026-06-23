@@ -71,15 +71,13 @@ static void reset_stubs(void)
  *  depends on STM32 HAL and hardware headers unavailable on a host PC.
  * ======================================================================== */
 
-/* RN4871 configuration commands — exact spec from SYSTEM_CONTEXT.md */
-#define BLE_CFG_NUM_CMDS  5
+/* RN4871 configuration commands — transparent serial bridge mode */
+#define BLE_CFG_NUM_CMDS  3
 
 static const char* ble_cfg_cmds[BLE_CFG_NUM_CMDS] = {
-    "SS,E18A0001-1E11-4F63-A23A-2D84F600A5D1\r\n",
-    "PS,E18A0002-1E11-4F63-A23A-2D84F600A5D1\r\n",
-    "SH,001A\r\n",
-    "PC,1A\r\n",
-    "---\r\n",
+    "SN,ACU_V3\r\n",
+    "SR,01\r\n",
+    "R,1\r\n",
 };
 
 static uint8_t      ble_cfg_state = 0;
@@ -100,7 +98,7 @@ void ble_module_config_tick(void)
     switch (ble_cfg_state) {
 
     case 0: /* idle */
-    case 6: /* done */
+    case 5: /* done */
         break;
 
     case 1: /* ENTER_CMD: send $$$ */
@@ -125,7 +123,7 @@ void ble_module_config_tick(void)
             ble_cfg_tick = now;
             ble_cfg_state = 4;
         } else {
-            ble_cfg_state = 6;   /* all done */
+            ble_cfg_state = 5;   /* all done */
         }
         break;
 
@@ -141,7 +139,7 @@ void ble_module_config_tick(void)
 
 uint8_t ble_module_config_is_done(void)
 {
-    return (ble_cfg_state == 6);
+    return (ble_cfg_state == 5);
 }
 
 /* ========================================================================
@@ -321,7 +319,7 @@ static int test_wait_enter_complete(void)
  *  TEST 6: In state 3, send the first configuration command
  *
  *  When in state 3 (SEND_CMD) with index=0, tick() must transmit the
- *  first command string (SS,E...) and transition to state 4 (WAIT_CMD).
+ *  first command string (SN,ACU_V3) and transition to state 4 (WAIT_CMD).
  * ======================================================================== */
 static int test_send_first_command(void)
 {
@@ -360,22 +358,20 @@ static int test_send_first_command(void)
 }
 
 /* ========================================================================
- *  TEST 7: Full configuration cycle — all 5 commands sent in order
+ *  TEST 7: Full configuration cycle — all 3 commands sent in order
  *
- *  Drive the full state machine:
+ *  Drive the full state machine (3 commands, done state = 5):
  *    start -> state1 -> tick -> state2 -> wait500 -> state3
  *    -> send_cmd0 -> state4 -> wait500 -> state3
  *    -> send_cmd1 -> state4 -> wait500 -> state3
  *    -> send_cmd2 -> state4 -> wait500 -> state3
- *    -> send_cmd3 -> state4 -> wait500 -> state3
- *    -> send_cmd4 -> state4 -> wait500 -> state3
- *    -> tick (index==BLE_CFG_NUM_CMDS, so state -> 6)
+ *    -> tick (index == BLE_CFG_NUM_CMDS, so state -> 5)
  *
- *  Total UART transmits = 1 ($$$) + 5 (commands) = 6.
+ *  Total UART transmits = 1 ($$$) + 3 (commands) = 4.
  * ======================================================================== */
 static int test_full_config_cycle(void)
 {
-    printf("=== TEST 7: Full configuration cycle ===\n");
+    printf("=== TEST 7: Full configuration cycle (3 commands) ===\n");
 
     reset_stubs();
     ble_cfg_state = 0;
@@ -397,7 +393,7 @@ static int test_full_config_cycle(void)
     TEST_ASSERT(ble_cfg_state == 3, "after 500ms -> state 3 (SEND_CMD)");
     TEST_ASSERT(ble_cfg_index == 0, "index reset to 0");
 
-    /* ---- Phase 3: send all 5 commands with 500ms between each ---- */
+    /* ---- Phase 3: send all 3 commands with 500ms between each ---- */
     for (int i = 0; i < BLE_CFG_NUM_CMDS; i++) {
         /* In state 3: send the current command */
         ble_module_config_tick();          /* state 3: send cmd[i], state -> 4 */
@@ -449,7 +445,7 @@ static int test_full_config_cycle(void)
         }
     }
 
-    /* ---- Phase 4: after last command, next tick in state 4 finishes ---- */
+    /* ---- Phase 4: after last command (cmd2), wait 500ms ---- */
     fake_tick += 500;
     ble_module_config_tick();              /* state 4 -> state 3 */
     TEST_ASSERT(ble_cfg_state == 3,
@@ -462,12 +458,12 @@ static int test_full_config_cycle(void)
     }
     printf("  PASS: index == BLE_CFG_NUM_CMDS (%d)\n", BLE_CFG_NUM_CMDS);
 
-    /* One more tick — index >= BLE_CFG_NUM_CMDS, so state -> 6 */
-    ble_module_config_tick();              /* state 3: all done, state -> 6 */
-    TEST_ASSERT(ble_cfg_state == 6,
-                "final state should be 6 (done)");
+    /* One more tick — index >= BLE_CFG_NUM_CMDS, so state -> 5 */
+    ble_module_config_tick();              /* state 3: all done, state -> 5 */
+    TEST_ASSERT(ble_cfg_state == 5,
+                "final state should be 5 (done)");
 
-    /* Verify total transmits */
+    /* Verify total transmits: 1 ($$$) + 3 (commands) = 4 */
     {
         int expected_total = 1 + BLE_CFG_NUM_CMDS;
         if (transmit_call_count != expected_total) {
@@ -487,8 +483,8 @@ static int test_full_config_cycle(void)
 /* ========================================================================
  *  TEST 8: is_done returns true after full cycle completes
  *
- *  After all 5 commands have been sent and the state machine has reached
- *  state 6, ble_module_config_is_done() must return 1 (true).
+ *  After all 3 commands have been sent and the state machine has reached
+ *  state 5, ble_module_config_is_done() must return 1 (true).
  * ======================================================================== */
 static int test_is_done_after_full_cycle(void)
 {
@@ -517,12 +513,12 @@ static int test_is_done_after_full_cycle(void)
     /* Final wait + tick to push past all commands */
     fake_tick += 500;
     ble_module_config_tick();              /* state 4 -> 3 (index now == NUM) */
-    ble_module_config_tick();              /* state 3 -> 6 (done) */
+    ble_module_config_tick();              /* state 3 -> 5 (done) */
 
     TEST_ASSERT(ble_module_config_is_done() == 1,
                 "is_done returns 1 after full cycle completes");
-    TEST_ASSERT(ble_cfg_state == 6,
-                "internal state is 6 (done)");
+    TEST_ASSERT(ble_cfg_state == 5,
+                "internal state is 5 (done)");
 
     printf("  PASS: is_done correctly reports configuration complete\n");
     return 1;

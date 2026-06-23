@@ -1,6 +1,6 @@
 ========================================
 ACU V3.0 - Host-Based Test Report
-Date: Thu Jun 18 23:39:12 WEST 2026
+Date: Sat Jun 20 11:32:09 WEST 2026
 ========================================
 
 [test_adc_callbacks]
@@ -256,9 +256,9 @@ Date: Thu Jun 18 23:39:12 WEST 2026
       PASS: two UART transmits total ($$$ + cmd0)
       PASS: transmitted length matches first command
       PASS: transmitted data matches first command string
-      PASS: First command "SS,E18A0001-1E11-4F63-A23A-2D84F600A5D1
+      PASS: First command "SN,ACU_V3
     " sent, state -> WAIT_CMD
-    === TEST 7: Full configuration cycle ===
+    === TEST 7: Full configuration cycle (3 commands) ===
       PASS: after start -> state 1
       PASS: after tick -> state 2 (WAIT_ENTER)
       PASS: transmit #1 = $$$
@@ -266,43 +266,162 @@ Date: Thu Jun 18 23:39:12 WEST 2026
       PASS: index reset to 0
       PASS: state is 4 (WAIT_CMD) after sending command
       PASS: transmit count after cmd 0 = 2
-      PASS: cmd 0 length = 41
+      PASS: cmd 0 length = 11
       PASS: cmd 0 data matches expected string
       PASS: after wait -> state 3 for next command
       PASS: index incremented to 1
       PASS: state is 4 (WAIT_CMD) after sending command
       PASS: transmit count after cmd 1 = 3
-      PASS: cmd 1 length = 41
+      PASS: cmd 1 length = 7
       PASS: cmd 1 data matches expected string
       PASS: after wait -> state 3 for next command
       PASS: index incremented to 2
       PASS: state is 4 (WAIT_CMD) after sending command
       PASS: transmit count after cmd 2 = 4
-      PASS: cmd 2 length = 9
+      PASS: cmd 2 length = 5
       PASS: cmd 2 data matches expected string
-      PASS: after wait -> state 3 for next command
-      PASS: index incremented to 3
-      PASS: state is 4 (WAIT_CMD) after sending command
-      PASS: transmit count after cmd 3 = 5
-      PASS: cmd 3 length = 7
-      PASS: cmd 3 data matches expected string
-      PASS: after wait -> state 3 for next command
-      PASS: index incremented to 4
-      PASS: state is 4 (WAIT_CMD) after sending command
-      PASS: transmit count after cmd 4 = 6
-      PASS: cmd 4 length = 5
-      PASS: cmd 4 data matches expected string
       PASS: after last wait -> state 3 (SEND_CMD)
-      PASS: index == BLE_CFG_NUM_CMDS (5)
-      PASS: final state should be 6 (done)
-      PASS: total transmits = 6 ($$$ + 5 commands)
-      PASS: Full cycle completed with 6 transmits, state=6
+      PASS: index == BLE_CFG_NUM_CMDS (3)
+      PASS: final state should be 5 (done)
+      PASS: total transmits = 4 ($$$ + 3 commands)
+      PASS: Full cycle completed with 4 transmits, state=5
     === TEST 8: is_done returns true after full cycle ===
       PASS: is_done returns 1 after full cycle completes
-      PASS: internal state is 6 (done)
+      PASS: internal state is 5 (done)
       PASS: is_done correctly reports configuration complete
     
     === Results: 8 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_ble_handler]
+  Conditions and Results:
+    ========================================
+     ble_handler.c Unit Tests
+    ========================================
+    
+    ========================================
+     Test 1
+    ========================================
+    === TEST 1: ble_handler_init ===
+      PASS: HAL_UART_Receive_DMA called on init
+      PASS: state == BLE_WAIT_CONFIG after init
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     Test 2
+    ========================================
+    === TEST 2: Config done -> BLE_BRIDGE ===
+      PASS: stays BLE_WAIT_CONFIG when config not done
+      PASS: transitions to BLE_BRIDGE when config done
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     Test 3
+    ========================================
+    === TEST 3: DMA timeout recovery ===
+      PASS: HAL_UART_AbortTransmit called on timeout
+      PASS: ble_tx_busy cleared after timeout recovery
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     Test 4
+    ========================================
+    === TEST 4: No timeout before 500ms ===
+      PASS: no abort before 500ms timeout
+      PASS: busy still set
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     Test 5
+    ========================================
+    === TEST 5: stop command ===
+      PASS: logs_paused set after stop command
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     Test 6
+    ========================================
+    === TEST 6: start command ===
+      PASS: logs_paused cleared after start command
+      PASS: flushing cleared after start command
+    
+      +++ TEST 6 PASSED +++
+    
+    ========================================
+     Test 7
+    ========================================
+    === TEST 7: flush command ===
+      PASS: logs_paused set after flush
+      PASS: flushing set after flush
+      PASS: flush_index advanced after first record
+      PASS: DMA TX called for event log header
+    
+      +++ TEST 7 PASSED +++
+    
+    ========================================
+     Test 8
+    ========================================
+    === TEST 8: Flush completes ===
+      PASS: flushing cleared after all records sent
+      PASS: logs_paused cleared after flush done
+    
+      +++ TEST 8 PASSED +++
+    
+    ========================================
+     Test 9
+    ========================================
+    === TEST 9: ble_send_binary success ===
+      PASS: ble_send_binary returns HAL_OK
+      PASS: ble_tx_busy set
+      PASS: DMA transmit called
+    
+      +++ TEST 9 PASSED +++
+    
+    ========================================
+     Test 10
+    ========================================
+    === TEST 10: ble_send_binary busy ===
+      PASS: ble_send_binary returns HAL_BUSY when busy
+    
+      +++ TEST 10 PASSED +++
+    
+    ========================================
+     Test 11
+    ========================================
+    === TEST 11: TxCpltCallback clears busy ===
+      PASS: ble_tx_busy cleared by callback
+    
+      +++ TEST 11 PASSED +++
+    
+    ========================================
+     Test 12
+    ========================================
+    === TEST 12: Telemetry log periodic send ===
+      PASS: DMA TX called for telemetry log
+    
+      +++ TEST 12 PASSED +++
+    
+    ========================================
+     Test 13
+    ========================================
+    === TEST 13: Telemetry log skipped when paused ===
+      PASS: no DMA TX when logs_paused
+    
+      +++ TEST 13 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 24
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
   Overall: PASS (exit=0)
   ---
 
@@ -403,9 +522,9 @@ Date: Thu Jun 18 23:39:12 WEST 2026
     
     --- TEST 7: Queue overflow behavior ---
       PASS: can_queue_index == 63 after 64 adds (last valid index)
-      PASS: can_queue_index == 64 after 65th add (no crash)
+      PASS: can_queue_index == 63 after 65th add (dropped by bounds check)
       PASS: queue fully drained after overflow
-      PASS: all 65 messages transmitted
+      PASS: 64 messages transmitted (65th dropped)
     
       +++ TEST 7 PASSED +++
     
@@ -462,6 +581,55 @@ Date: Thu Jun 18 23:39:12 WEST 2026
       PASS: EMA converges correctly without overshoot
     
     === Results: 5 passed, 0 failed ===
+  Overall: PASS (exit=0)
+  ---
+
+[test_handle_emergency]
+  Conditions and Results:
+    ========================================
+     Handle_Emergency() Unit Tests
+    ========================================
+    
+    ========================================
+     Test 1
+    ========================================
+    === TEST 1: Handle_Emergency sets fields correctly ===
+      PASS: WDT disabled
+      PASS: ignition off
+      PASS: Emergency flag set
+      PASS: front solenoid off
+      PASS: rear solenoid off
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     Test 2
+    ========================================
+    === TEST 2: GPIO writes for both solenoids ===
+      PASS: two HAL_GPIO_WritePin calls
+      PASS: last write on rear solenoid port
+      PASS: last write on rear solenoid pin
+      PASS: last write is RESET
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     Test 3
+    ========================================
+    === TEST 3: Idempotent — emergency already active ===
+      PASS: Emergency stays 1
+      PASS: WDT stays 0
+      PASS: solenoid stays 0
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 12
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
   Overall: PASS (exit=0)
   ---
 
@@ -774,12 +942,15 @@ Date: Thu Jun 18 23:39:12 WEST 2026
       +++ TEST 4 PASSED +++
     
     ========================================
-     TEST 5: Full buffer drops data
+     TEST 5: Full buffer overwrites oldest entries
     ========================================
     
-    --- TEST 5: Full buffer drops data ---
-      PASS: counter == MAX_SIZE after overflow pushes
-      PASS: head == tail when full (wrapped around)
+    --- TEST 5: Full buffer overwrites oldest entries ---
+      PASS: counter == MAX_SIZE after fill
+      PASS: counter still MAX_SIZE after overwrite pushes
+      PASS: head == tail when full (head and tail advance in lockstep)
+      PASS: first popped entry has StdId == 10 (oldest 10 were overwritten)
+      PASS: second popped entry has StdId == 11
     
       +++ TEST 5 PASSED +++
     
@@ -1341,7 +1512,7 @@ Date: Thu Jun 18 23:39:12 WEST 2026
     ========================================
      RESULTS
     ========================================
-      Passed assertions: 549
+      Passed assertions: 552
       Failed assertions: 0
     
       >>> ALL TESTS PASSED <<<
@@ -1369,8 +1540,16 @@ Date: Thu Jun 18 23:39:12 WEST 2026
       PASS: JETSON decoded AS_STATE_READY, TRACKDRIVE
     === TEST 8: dbc_decode VCU_RPM ===
       PASS: VCU_RPM decoded rpm = 3000
+    === TEST 9: Mission mismatch — no immediate EMERGENCY ===
+      PASS: No premature EMERGENCY from mission mismatch debounce
+    === TEST 10: Mission mismatch — triggers after 1 s ===
+      PASS: EMERGENCY triggered after 1 s debounce
+    === TEST 11: Mission mismatch — cleared before timeout ===
+      PASS: Debounce correctly reset after mismatch cleared
+    === TEST 12: Mission mismatch — does not block Finish ===
+      PASS: Finish transition not blocked by mission mismatch debounce
     
-    === Results: 8 passed, 0 failed ===
+    === Results: 12 passed, 0 failed ===
   Overall: PASS (exit=0)
   ---
 
@@ -1564,6 +1743,68 @@ Date: Thu Jun 18 23:39:12 WEST 2026
   Overall: PASS (exit=0)
   ---
 
+[test_toggle_wdt]
+  Conditions and Results:
+    ========================================
+     toggle_wdt() Unit Tests
+    ========================================
+    
+    ========================================
+     Test 1
+    ========================================
+    === TEST 1: WDT disabled — no toggle ===
+      PASS: no toggle when HW_WDT_Enable == 0
+    
+      +++ TEST 1 PASSED +++
+    
+    ========================================
+     Test 2
+    ========================================
+    === TEST 2: WDT enabled, first call ===
+      PASS: toggle occurs on first call with time >= 10
+      PASS: toggle on WDT_PULSE_GPIO_Port
+      PASS: toggle on WDT_PULSE_Pin
+    
+      +++ TEST 2 PASSED +++
+    
+    ========================================
+     Test 3
+    ========================================
+    === TEST 3: Too soon — second call skipped ===
+      PASS: first call toggles
+      PASS: second call skipped (only 5 ms elapsed)
+    
+      +++ TEST 3 PASSED +++
+    
+    ========================================
+     Test 4
+    ========================================
+    === TEST 4: 10 ms apart — both toggle ===
+      PASS: first call toggles
+      PASS: second call toggles after 10 ms
+    
+      +++ TEST 4 PASSED +++
+    
+    ========================================
+     Test 5
+    ========================================
+    === TEST 5: WDT disabled mid-cycle ===
+      PASS: first call toggles
+      PASS: no toggle after WDT disabled (time elapsed but WDT off)
+      PASS: toggle resumes after WDT re-enabled
+    
+      +++ TEST 5 PASSED +++
+    
+    ========================================
+     RESULTS
+    ========================================
+      Passed assertions: 11
+      Failed assertions: 0
+    
+      >>> ALL TESTS PASSED <<<
+  Overall: PASS (exit=0)
+  ---
+
 [test_uart_callbacks]
   Conditions and Results:
     ========================================
@@ -1677,5 +1918,5 @@ Date: Thu Jun 18 23:39:12 WEST 2026
   ---
 
 ========================================
-SUMMARY: 13/13 tests passed
+SUMMARY: 16/16 tests passed
 ========================================

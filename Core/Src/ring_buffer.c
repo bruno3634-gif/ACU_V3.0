@@ -17,26 +17,30 @@ void can_buffer_init(struct ring *ring_buffer) {
 void can_buffer_push(struct ring *ring_buffer, CAN_TxHeaderTypeDef  tx_header,
 		uint8_t data[8]) {
 	if (ring_buffer->counter >= MAX_SIZE) {
-		return;
+		/* Buffer full — advance tail to discard oldest entry */
+		ring_buffer->tail = (ring_buffer->tail + 1) % MAX_SIZE;
+	} else {
+		ring_buffer->counter++;
 	}
 	ring_buffer->queue[ring_buffer->head].can_tx_header = tx_header;
 	memcpy(ring_buffer->queue[ring_buffer->head].tx_data, data, 8);
 
 	ring_buffer->head = (ring_buffer->head + 1) % MAX_SIZE;
-	ring_buffer->counter++;
 }
 
 void can_rx_buffer_push(struct ring *ring_buffer, CAN_RxHeaderTypeDef  tx_header,
 		uint8_t data[8]) {
 	if (ring_buffer->counter >= MAX_SIZE) {
-		return;
+		/* Buffer full — advance tail to discard oldest entry */
+		ring_buffer->tail = (ring_buffer->tail + 1) % MAX_SIZE;
+	} else {
+		ring_buffer->counter++;
 	}
 	ring_buffer->queue[ring_buffer->head].arrival_time = HAL_GetTick();
 	ring_buffer->queue[ring_buffer->head].can_rx_header = tx_header;
 	memcpy(ring_buffer->queue[ring_buffer->head].tx_data, data, 8);
 
 	ring_buffer->head = (ring_buffer->head + 1) % MAX_SIZE;
-	ring_buffer->counter++;
 }
 
 void can_buffer_pop(struct ring *ring_buffer, uint8_t tx_or_rx,struct can_queue *can_rx) {

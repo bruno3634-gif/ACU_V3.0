@@ -287,6 +287,14 @@ struct ring can_rx_ringbuffer;
 /* File-scope static that matches the one in Autonomous_functions.c */
 static uint32_t state_timer = 0;
 
+/*
+ * File-scope replacements for function-level statics in the test copies.
+ * Exposed here so reset_globals() can clear them between tests.
+ */
+static uint32_t _test_mismatch_tick      = 0;
+static uint8_t  _test_mismatch_active    = 0;
+static uint8_t  _test_as_on_first_time   = 0;
+
 /* ========================================================================
  *  Function bodies — copied verbatim from Core/Src/Autonomous_functions.c
  *
@@ -519,9 +527,20 @@ void Handle_autonomous_state(void) {
                                   t24.Front_Pressure.Pneumatic,
                                   t24.Rear_Pressure.Hydraulic,
                                   t24.Front_Pressure.Hydraulic);
+        {
+            /* Debounce: require 1 s of sustained mismatch before EMERGENCY */
             if (t24.Current_Mission != t24.Jetson_mission) {
-                Vehicle_state_machine = EMERGENCY;
-            } else if (t24.Autonomous_State == AS_STATE_FINISHED) {
+                if (!_test_mismatch_active) {
+                    _test_mismatch_active = 1;
+                    _test_mismatch_tick = millis();
+                } else if (millis() - _test_mismatch_tick >= 1000) {
+                    Vehicle_state_machine = EMERGENCY;
+                }
+            } else {
+                _test_mismatch_active = 0;  /* mission match restored */
+            }
+        }
+            if (t24.Autonomous_State == AS_STATE_FINISHED) {
                 Autonomous_state = Finish;
             }
             break;
@@ -556,25 +575,24 @@ void Handle_Emergency(void) {
 }
 
 void Handle_state(uint8_t prev_asms_state) {
-    static uint8_t as_on_first_time = 0;
     switch (Vehicle_state_machine) {
         case Start:
             t24.HW_WDT_Enable = 1;
             Vehicle_state_machine = IDLE;
             break;
         case IDLE:
-            as_on_first_time = 0;
+            _test_as_on_first_time = 0;
             if (t24.ASMS == 1 && prev_asms_state == 0
                 && t24.ignition_pin_state == 0) {
                 Vehicle_state_machine = AS_ON;
-                as_on_first_time = 0;
+                _test_as_on_first_time = 0;
             }
             break;
         case AS_ON:
-            if (!as_on_first_time) {
+            if (!_test_as_on_first_time) {
                 startup_sequence_state = WDT_TOGGLE_CHECK;
                 Autonomous_state       = Initial_Sequence;
-                as_on_first_time       = 1;
+                _test_as_on_first_time = 1;
             }
             Handle_autonomous_state();
             break;
@@ -674,6 +692,11 @@ static void reset_globals(void) {
     /* Ignition pin state: default to 1 so Ignition_Request gets a
      * sensible value in HV_ACTIVATION */
     t24.ignition_pin_state = 1;
+
+    /* Clear file-scope statics used in function test copies */
+    _test_mismatch_tick      = 0;
+    _test_mismatch_active    = 0;
+    _test_as_on_first_time   = 0;
 }
 
 /* Custom assert macro — returns failure code from test function */
@@ -1006,7 +1029,201 @@ static int test_dbc_decode_vcu_rpm(void)
 }
 
 /* ========================================================================
- *  Main — run all 8 tests, count pass/fail
+ *  TEST 9: Mission mismatch debounce — no immediate EMERGENCY
+ *
+ *  Set up a mission mismatch (ACCELERATION vs SKIDPAD) while in
+ *  Monitor_sequence with all monitoring conditions passing.
+ *  Verify that the debounce waits at least 1 s before escalating.
+ * ======================================================================== */
+
+static int test_mission_mismatch_no_immediate_emergency(void)
+{
+    printf("=== TEST 9: Mission mismatch — no immediate EMERGENCY ===\n");
+
+    reset_globals();
+
+    Autonomous_state          = Monitor_sequence;
+    t24.Current_Mission       = ACCELERATION;   /* 1 */
+    t24.Jetson_mission        = SKIDPAD;        /* 2 — mismatch */
+    t24.SDC_feedback          = 1;
+    /* Good pressures so continuous_monitoring() passes */
+    t24.Front_Pressure.Pneumatic  = 7.5f;
+    t24.Rear_Pressure.Pneumatic   = 8.2f;
+    t24.Front_Pressure.Hydraulic  = 68.0f;      /* 9.0 * 7.5 = 67.5 */
+    t24.Rear_Pressure.Hydraulic   = 25.0f;      /* 3.0 * 8.2 = 24.6 */
+    /* Keep timeouts happy — all LAST_TX match fake_time_ms (0) */
+
+    /* Call at t = 0 ms — debounce should just start */
+    fake_time_ms = 0;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Should NOT trigger EMERGENCY at t=0 (debounce just started)");
+
+    /* Advance to t = 500 ms — still inside the 1 s window */
+    fake_time_ms = 500;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Should NOT trigger EMERGENCY at t=500 ms (debounce < 1 s)");
+
+    printf("  PASS: No premature EMERGENCY from mission mismatch debounce\n");
+    return 1;
+}
+
+/* ========================================================================
+ *  TEST 10: Mission mismatch debounce — triggers after 1 s
+ *
+ *  Same setup as TEST 9, but advance past the 1 s threshold and verify
+ *  that Vehicle_state_machine becomes EMERGENCY.
+ * ======================================================================== */
+
+static int test_mission_mismatch_triggers_after_1s(void)
+{
+    printf("=== TEST 10: Mission mismatch — triggers after 1 s ===\n");
+
+    reset_globals();
+
+    Autonomous_state          = Monitor_sequence;
+    t24.Current_Mission       = ACCELERATION;
+    t24.Jetson_mission        = SKIDPAD;
+    t24.SDC_feedback          = 1;
+    t24.Front_Pressure.Pneumatic  = 7.5f;
+    t24.Rear_Pressure.Pneumatic   = 8.2f;
+    t24.Front_Pressure.Hydraulic  = 68.0f;
+    t24.Rear_Pressure.Hydraulic   = 25.0f;
+
+    /* Call at t = 0 — debounce starts */
+    fake_time_ms = 0;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Not EMERGENCY at t=0");
+
+    /* Advance to exactly 1 s — threshold reached */
+    fake_time_ms = 1000;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine == EMERGENCY,
+                "Should be EMERGENCY at t=1000 ms (debounce expired)");
+
+    printf("  PASS: EMERGENCY triggered after 1 s debounce\n");
+    return 1;
+}
+
+/* ========================================================================
+ *  TEST 11: Mission mismatch cleared before timeout
+ *
+ *  Start with a mismatch, then restore matching missions before the
+ *  1 s debounce expires.  Verify that EMERGENCY is never entered and
+ *  the debounce resets.
+ * ======================================================================== */
+
+static int test_mission_mismatch_clears_before_timeout(void)
+{
+    printf("=== TEST 11: Mission mismatch — cleared before timeout ===\n");
+
+    reset_globals();
+
+    /* Prevent false module_timeout() — CAN timestamps must stay recent
+     * relative to fake_time_ms advances throughout the test.
+     */
+    t24.VCU_LAST_TX = fake_time_ms;
+    t24.REAR_PRESSURE_LAST_TX = fake_time_ms;
+    t24.JETSON_LAST_TX = fake_time_ms;
+    t24.DIR_ACTUATOR_LAST_TX = fake_time_ms;
+    t24.RES_LAST_TX = fake_time_ms;
+
+    Autonomous_state          = Monitor_sequence;
+    t24.Current_Mission       = ACCELERATION;
+    t24.Jetson_mission        = SKIDPAD;
+    t24.SDC_feedback          = 1;
+    t24.Front_Pressure.Pneumatic  = 7.5f;
+    t24.Rear_Pressure.Pneumatic   = 8.2f;
+    t24.Front_Pressure.Hydraulic  = 68.0f;
+    t24.Rear_Pressure.Hydraulic   = 25.0f;
+
+    /* Call at t = 0 — debounce starts */
+    fake_time_ms = 0;
+    t24.VCU_LAST_TX = fake_time_ms;
+    t24.REAR_PRESSURE_LAST_TX = fake_time_ms;
+    t24.JETSON_LAST_TX = fake_time_ms;
+    t24.DIR_ACTUATOR_LAST_TX = fake_time_ms;
+    t24.RES_LAST_TX = fake_time_ms;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Not EMERGENCY at t=0");
+
+    /* At t = 500 ms, clear the mismatch */
+    fake_time_ms = 500;
+    t24.VCU_LAST_TX = fake_time_ms;
+    t24.REAR_PRESSURE_LAST_TX = fake_time_ms;
+    t24.JETSON_LAST_TX = fake_time_ms;
+    t24.DIR_ACTUATOR_LAST_TX = fake_time_ms;
+    t24.RES_LAST_TX = fake_time_ms;
+    t24.Current_Mission = t24.Jetson_mission;   /* now both SKIDPAD */
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Not EMERGENCY after mismatch cleared at t=500 ms");
+
+    /* At t = 2000 ms, verify still no EMERGENCY (debounce was reset) */
+    fake_time_ms = 2000;
+    t24.VCU_LAST_TX = fake_time_ms;
+    t24.REAR_PRESSURE_LAST_TX = fake_time_ms;
+    t24.JETSON_LAST_TX = fake_time_ms;
+    t24.DIR_ACTUATOR_LAST_TX = fake_time_ms;
+    t24.RES_LAST_TX = fake_time_ms;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Not EMERGENCY at t=2000 ms (debounce was reset when mismatch cleared)");
+
+    printf("  PASS: Debounce correctly reset after mismatch cleared\n");
+    return 1;
+}
+
+/* ========================================================================
+ *  TEST 12: Mission mismatch does not block Finish transition
+ *
+ *  Start with a mission mismatch active.  Set Autonomous_State to
+ *  AS_STATE_FINISHED before the debounce expires.  Verify that
+ *  Autonomous_state transitions to Finish (not blocked by debounce).
+ * ======================================================================== */
+
+static int test_mission_mismatch_does_not_block_finish(void)
+{
+    printf("=== TEST 12: Mission mismatch — does not block Finish ===\n");
+
+    reset_globals();
+
+    Autonomous_state          = Monitor_sequence;
+    t24.Current_Mission       = ACCELERATION;
+    t24.Jetson_mission        = SKIDPAD;
+    t24.SDC_feedback          = 1;
+    t24.Front_Pressure.Pneumatic  = 7.5f;
+    t24.Rear_Pressure.Pneumatic   = 8.2f;
+    t24.Front_Pressure.Hydraulic  = 68.0f;
+    t24.Rear_Pressure.Hydraulic   = 25.0f;
+
+    /* Call at t = 0 — debounce starts, Autonomous_State still driving */
+    t24.Autonomous_State = AS_STATE_DRIVING;
+    fake_time_ms = 0;
+    Handle_autonomous_state();
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "Not EMERGENCY at t=0");
+    TEST_ASSERT(Autonomous_state == Monitor_sequence,
+                "Should remain in Monitor_sequence while driving");
+
+    /* At t = 500 ms, set finished — must transition even with mismatch */
+    fake_time_ms = 500;
+    t24.Autonomous_State = AS_STATE_FINISHED;
+    Handle_autonomous_state();
+    TEST_ASSERT(Autonomous_state == Finish,
+                "Should transition to Finish despite active mismatch debounce");
+    TEST_ASSERT(Vehicle_state_machine != EMERGENCY,
+                "EMERGENCY should not be set when Finish takes precedence");
+
+    printf("  PASS: Finish transition not blocked by mission mismatch debounce\n");
+    return 1;
+}
+
+/* ========================================================================
+ *  Main — run all 12 tests, count pass/fail
  * ======================================================================== */
 
 int main(void)
@@ -1016,14 +1233,18 @@ int main(void)
 
     printf("\n=== State Machine / dbc_decode Test Harness ===\n\n");
 
-    if (test_handle_auto_init_to_monitor()) passed++; else failed++;
-    if (test_handle_state_start_to_idle())   passed++; else failed++;
-    if (test_handle_state_idle_to_as_on())   passed++; else failed++;
-    if (test_handle_state_emergency_recovery()) passed++; else failed++;
-    if (test_dbc_decode_aqt7())              passed++; else failed++;
-    if (test_dbc_decode_vcu_ign())           passed++; else failed++;
-    if (test_dbc_decode_jetson())            passed++; else failed++;
-    if (test_dbc_decode_vcu_rpm())           passed++; else failed++;
+    if (test_handle_auto_init_to_monitor())              passed++; else failed++;
+    if (test_handle_state_start_to_idle())                passed++; else failed++;
+    if (test_handle_state_idle_to_as_on())                passed++; else failed++;
+    if (test_handle_state_emergency_recovery())           passed++; else failed++;
+    if (test_dbc_decode_aqt7())                           passed++; else failed++;
+    if (test_dbc_decode_vcu_ign())                        passed++; else failed++;
+    if (test_dbc_decode_jetson())                         passed++; else failed++;
+    if (test_dbc_decode_vcu_rpm())                        passed++; else failed++;
+    if (test_mission_mismatch_no_immediate_emergency())   passed++; else failed++;
+    if (test_mission_mismatch_triggers_after_1s())        passed++; else failed++;
+    if (test_mission_mismatch_clears_before_timeout())    passed++; else failed++;
+    if (test_mission_mismatch_does_not_block_finish())    passed++; else failed++;
 
     printf("\n=== Results: %d passed, %d failed ===\n", passed, failed);
 

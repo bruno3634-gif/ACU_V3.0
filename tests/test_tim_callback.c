@@ -31,6 +31,7 @@
 typedef uint32_t HAL_StatusTypeDef;
 #define HAL_OK     0
 #define HAL_ERROR  1
+#define HAL_BUSY   2
 
 typedef struct { uint32_t Instance; } TIM_TypeDef;
 #define TIM2_BASE 0x40000000
@@ -292,6 +293,12 @@ HAL_StatusTypeDef HAL_UART_Abort(UART_HandleTypeDef *huart) {
     return HAL_OK;
 }
 
+HAL_StatusTypeDef HAL_UART_AbortTransmit(UART_HandleTypeDef *huart) {
+    (void)huart;
+    uart_abort_call_count++;
+    return HAL_OK;
+}
+
 /* ==================================================================
  * BLE config stub  (from APP.c)
  * ================================================================== */
@@ -308,6 +315,9 @@ uint8_t ble_module_config_is_done(void) { return ble_config_done; }
  *     static locals (so tests can observe and control DMA busy state).
  *   - Simplified: Vehicle_state_machine and Emergency_cause replaced
  *     with 0 (omitted for test focus).
+ *   - BLE telemetry uses the centralized pattern from production:
+ *     early-return on !config_done or busy, then populate and send.
+ *     DMA timeout recovery mirrors ble_handler.c (HAL_UART_AbortTransmit).
  * ================================================================== */
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
@@ -360,40 +370,46 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
         add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 
-        /* ── BLE telemetry ── */
-        /* DMA timeout recovery: if TX stuck >500ms, abort and reset */
+        /* ── DMA timeout recovery: if TX stuck >500ms, abort and reset ── */
         if (test_ble_tx_busy && (HAL_GetTick() - test_ble_tx_tick > 500)) {
-            HAL_UART_Abort(&huart2);
+            HAL_UART_AbortTransmit(&huart2);
             test_ble_tx_busy = 0;
         }
-        if (ble_module_config_is_done() && !test_ble_tx_busy) {
-            static ble_telemetry_packet_t pkt;
-            pkt.state_machine      = 0; /* Vehicle_state_machine omitted */
-            pkt.assi_status        = t24.ASSI_state;
-            pkt.mission            = (uint8_t)t24.Current_Mission;
-            {   float _v = t24.Front_Pressure.Hydraulic * 100.0f;
-                pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535
-                                  : (_v < 0 ? 0 : (uint16_t)_v); }
-            {   float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
-                pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535
-                                  : (_v < 0 ? 0 : (uint16_t)_v); }
-            {   float _v = t24.Front_Pressure.Pneumatic * 100.0f;
-                pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535
-                                  : (_v < 0 ? 0 : (uint16_t)_v); }
-            {   float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
-                pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535
-                                  : (_v < 0 ? 0 : (uint16_t)_v); }
-            {   float _v = t24.chip_temp * 100.0f;
-                pkt.chip_temp = (_v > 32767.0f) ? 32767
-                               : (_v < -32768.0f) ? -32768 : (int16_t)_v; }
-            pkt.solenoid_front     = t24.front_solenoid;
-            pkt.solenoid_rear      = t24.rear_solenoid;
 
-            if (HAL_UART_Transmit_DMA(&huart2, (uint8_t*)&pkt,
-                                      sizeof(pkt)) == HAL_OK) {
-                test_ble_tx_busy = 1;
-                test_ble_tx_tick = HAL_GetTick();
-            }
+        /* ── BLE telemetry: 15-byte binary packet (mirrors production ble_handler.c) ── */
+        if (!ble_module_config_is_done()) {
+            return;
+        }
+        if (test_ble_tx_busy) {
+            return;                 /* still sending previous packet, skip this tick */
+        }
+        static ble_telemetry_packet_t pkt;
+        pkt.state_machine      = 0; /* Vehicle_state_machine omitted */
+        pkt.assi_status        = t24.ASSI_state;
+        pkt.mission            = (uint8_t)t24.Current_Mission;
+        {   float _v = t24.Front_Pressure.Hydraulic * 100.0f;
+            pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535
+                              : (_v < 0 ? 0 : (uint16_t)_v); }
+        {   float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
+            pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535
+                              : (_v < 0 ? 0 : (uint16_t)_v); }
+        {   float _v = t24.Front_Pressure.Pneumatic * 100.0f;
+            pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535
+                              : (_v < 0 ? 0 : (uint16_t)_v); }
+        {   float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
+            pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535
+                              : (_v < 0 ? 0 : (uint16_t)_v); }
+        {   float _v = t24.chip_temp * 100.0f;
+            pkt.chip_temp = (_v > 32767.0f) ? 32767
+                           : (_v < -32768.0f) ? -32768 : (int16_t)_v; }
+        pkt.solenoid_front     = t24.front_solenoid;
+        pkt.solenoid_rear      = t24.rear_solenoid;
+
+        /* The production code calls ble_send_binary() here.
+         * In the test stub, directly set the busy flag to simulate a successful send. */
+        if (HAL_UART_Transmit_DMA(&huart2, (uint8_t*)&pkt, sizeof(pkt)) == HAL_OK) {
+            test_ble_tx_busy = 1;
+            test_ble_tx_tick = HAL_GetTick();
         }
     }
 }

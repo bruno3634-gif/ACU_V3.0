@@ -6,6 +6,7 @@
  */
 
 #include "APP.h"
+#include "ble_handler.h"
 #include <string.h>
 
 
@@ -29,15 +30,13 @@ extern struct ring can_rx_ringbuffer;
 uint8_t prev_car_state = -1;
 uint8_t prev_as_state = -1;
 
-/* RN4871 configuration commands — exact spec from SYSTEM_CONTEXT.md */
-#define BLE_CFG_NUM_CMDS  5
+/* RN4871 configuration commands — transparent serial bridge mode */
+#define BLE_CFG_NUM_CMDS  3
 
 static const char* ble_cfg_cmds[BLE_CFG_NUM_CMDS] = {
-    "SS,E18A0001-1E11-4F63-A23A-2D84F600A5D1\r\n",
-    "PS,E18A0002-1E11-4F63-A23A-2D84F600A5D1\r\n",
-    "SH,001A\r\n",
-    "PC,1A\r\n",
-    "---\r\n",
+    "SN,ACU_V3\r\n",
+    "SR,01\r\n",
+    "R,1\r\n",
 };
 
 static uint8_t      ble_cfg_state = 0;
@@ -98,12 +97,14 @@ void app_init() {
 	extern volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
 
 	ble_module_config_start();
+	ble_handler_init();
 
 
 }
 
 void app() {
 	ble_module_config_tick();
+	ble_handler();
 	prev_ASMS = t24.ASMS;
 	Peripheral_aquisition(&ASSI_leds_control_signal);
 	temporary_temp = t24.chip_temp;
@@ -134,11 +135,11 @@ void ble_module_config_tick(void) {
     switch (ble_cfg_state) {
 
     case 0: /* idle */
-    case 6: /* done */
+    case 5: /* done */
         break;
 
     case 1: /* ENTER_CMD: send $$$ */
-        HAL_UART_Transmit(&huart2, (uint8_t*)"$$$", 3, 10);
+        HAL_UART_Transmit(&huart1, (uint8_t*)"$$$", 3, 10);
         ble_cfg_tick = now;
         ble_cfg_state = 2;
         break;
@@ -153,13 +154,13 @@ void ble_module_config_tick(void) {
 
     case 3: /* SEND_CMD: send next configuration command */
         if (ble_cfg_index < BLE_CFG_NUM_CMDS) {
-            HAL_UART_Transmit(&huart2,
+            HAL_UART_Transmit(&huart1,
                               (uint8_t*)ble_cfg_cmds[ble_cfg_index],
                               strlen(ble_cfg_cmds[ble_cfg_index]), 10);
             ble_cfg_tick = now;
             ble_cfg_state = 4;
         } else {
-            ble_cfg_state = 6;   /* all done */
+            ble_cfg_state = 5;   /* all done */
         }
         break;
 
@@ -175,7 +176,9 @@ void ble_module_config_tick(void) {
 
 
 uint8_t ble_module_config_is_done(void) {
-    return (ble_cfg_state == 6);
+   // return (ble_cfg_state == 5);
+	ble_cfg_state == 5;
+	return ble_cfg_state;
 }
 
 
