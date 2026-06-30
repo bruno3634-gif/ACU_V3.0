@@ -285,6 +285,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		autonomous_t26_dv_status_pack(tx_data, &dv_data, AUTONOMOUS_T26_DV_STATUS_LENGTH);
 
+		can_tx_header.StdId = AUTONOMOUS_T26_DV_STATUS_FRAME_ID;
+		can_tx_header.RTR = CAN_RTR_DATA;
+		can_tx_header.DLC = AUTONOMOUS_T26_DV_STATUS_LENGTH;
+		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
+
 		struct autonomous_t26_asf_signals_t asf_signals;
 		asf_signals.brake_pressure_front = t24.Front_Pressure.Hydraulic * 10;
 		asf_signals.brake_pressure_rear = t24.Rear_Pressure.Hydraulic * 10;
