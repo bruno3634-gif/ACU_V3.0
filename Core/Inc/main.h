@@ -174,6 +174,7 @@ struct car {
 	uint8_t Res;					// 0 - Not active, 1 - ON , 2 - Emergency
 	uint8_t HW_WDT_Enable;
 	uint8_t ignition_pin_state;
+	uint8_t prev_ign_pin_state;
 	uint8_t SDC_feedback;
 	uint8_t ASSI_state;
 	uint8_t vcu_sdc;

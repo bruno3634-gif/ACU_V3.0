@@ -66,6 +66,7 @@ void app_init() {
 	t24.Current_Mission = MANUAL;
 	t24.Autonomous_State = AS_STATE_OFF;
 	t24.HW_WDT_Enable = 1;
+	t24.prev_ign_pin_state = 0;
 
 
 	Vehicle_state_machine = Start;
@@ -192,6 +193,12 @@ void dbc_decode(){
 		t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
 		t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 		break;
+	case AUTONOMOUS_T26_AQT1_FRAME_ID:
+			struct autonomous_t26_aqt1_t front_dynamics;
+			autonomous_t26_aqt1_unpack(&front_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT1_LENGTH);
+			t24.Front_Pressure.Hydraulic = autonomous_t26_aqt1_frt_brk_press_decode(front_dynamics.frt_brk_press);
+			//t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
+			break;
 	case AUTONOMOUS_T26_VCU_IGN_R2_D_FRAME_ID:
 		struct autonomous_t26_vcu_ign_r2_d_t vcu_data;
 		autonomous_t26_vcu_ign_r2_d_unpack(&vcu_data, can_rx_data.tx_data, AUTONOMOUS_T26_VCU_IGN_R2_D_LENGTH);

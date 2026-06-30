@@ -4,6 +4,7 @@
 /* ── Mission-mismatch debounce state (file-scope so it can be reset on re-entry) ── */
 static uint32_t mismatch_tick    = 0;
 static uint8_t  mismatch_active  = 0;
+uint8_t activate_res = 0;
 extern cant_acu_state_t ACU_STATE;
 
 void Handle_autonomous_state() {
@@ -89,6 +90,7 @@ void Handle_state(uint8_t prev_asms_state) {
 		ACU_STATE = MISSION_SELECT;
 		if (t24.ASMS == 1 && prev_asms_state == 0
 				&& t24.ignition_pin_state == 0) {
+			activate_res = 1;
 			Vehicle_state_machine = AS_ON;
 			as_on_first_time = 0;
 		}
@@ -98,6 +100,9 @@ void Handle_state(uint8_t prev_asms_state) {
 			startup_sequence_state = WDT_TOGGLE_CHECK;
 			Autonomous_state = Initial_Sequence;
 			as_on_first_time = 1;
+		}
+		if(!t24.ASMS){
+			Vehicle_state_machine = IDLE;
 		}
 		Handle_autonomous_state();
 		break;

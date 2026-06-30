@@ -60,3 +60,247 @@ This file MUST be updated at EVERY step — not just at the end of a session. Ev
 
 ## stale docs
 - hardware_abstaction.c filename still missing 'r' (typo)
+
+---
+
+## 2026-06-25 — ESP32 HIL Pressure Simulation Script
+
+### Project & File Structure Description
+
+**ACU_V3.0** is an STM32F412RETx firmware for a Formula Student autonomous vehicle (T26). It acts as a central safety and control hub managing:
+
+```
+ACU_V3.0/
+├── Core/
+│   ├── Inc/          — Headers (main.h, ble_handler.h, autonomous_t26.h, etc.)
+│   ├── Src/          — Source (main.c, APP.c, state_machine.c, adc.c, can.c, 
+│   │                   ble_handler.c, autonomous_t26.c, ring_buffer.c, etc.)
+│   └── Startup/      — STM32 startup files
+├── Drivers/          — STM32 HAL drivers
+├── tests/            — Host-based test suite (16 test files, Makefile, run_tests.sh)
+├── docs/             — Documentation
+├── scripts/          — Python simulation & tooling (NEW)
+├── last_session.md   — Session log
+└── README.md
+```
+
+**ESP32 HIL project** (external, pre-programmed):
+```
+/mnt/e/esp32_hil/esp32_hil/
+├── src/main.cpp             — ESP32 firmware: 2× DAC, CAN TX/RX, serial protocol
+├── scripts/hil_controller.py — Python HILController class (serial binary protocol)
+├── scripts/example.py       — Usage examples
+├── scripts/waveforms.py     — DAC waveform generator
+└── platformio.ini
+```
+
+### Hardware-in-the-Loop (HIL) Architecture
+
+The ESP32 provides two stimulus paths to the ACU:
+
+| Domain | CAN Frame | CAN ID | Hydraulic Signal | ADC Pin | DAC | Pneumatic Signal |
+|--------|-----------|--------|-----------------|---------|-----|-----------------|
+| Front  | AQT1      | 0x710  | frt_brk_press   | PA4 (ADC1_IN4) | DAC1 (GPIO25) | Front pneumatic tank pressure |
+| Rear   | AQT7      | 0x770  | rear_brk_press  | PA5 (ADC1_IN5) | DAC2 (GPIO26) | Rear pneumatic tank pressure |
+
+Serial binary protocol: START(0xAA) | CMD(1B) | LEN(1B) | PAYLOAD(LEN B) | CHK(1B) at 921600 baud.
+
+### New File Created
+
+**`scripts/pressure_sim.py`** — Unified pressure simulator for front & rear brake circuits.
+
+#### Pressure Math Explained
+
+**DAC → ADC (Pneumatic path):**
+
+The ACU firmware computes:
+```
+raw_voltage = (ADC_sample × 3.3 / 4096) / 0.66    ← /0.66 undoes the 0.66 gain voltage divider
+P(bar)      = (raw_voltage - 0.5) / 0.4            ← sensor transfer function (0.5V=0bar, 4.5V=10bar)
+```
+
+Working backward from desired P to DAC value:
+```
+V_sensor_needed  = P × 0.4 + 0.5                   ← inverse sensor model
+V_at_ADC_pin     = V_sensor_needed × 0.66           ← ACU divides by 0.66, so we pre-multiply
+DAC_value        = V_at_ADC_pin / 3.3 × 255         ← ESP32 8-bit DAC (0-3.3V)
+```
+
+Example: 8 bar pneumatic rear:
+```
+V_sensor  = 8 × 0.4 + 0.5 = 3.7 V
+V_at_PA5  = 3.7 × 0.66 = 2.442 V
+DAC_value = 2.442 / 3.3 × 255 = 189
+ACU reads back: (189/255 × 3.3 / 0.66 - 0.5) / 0.4 ≈ 8.02 bar  (0.25% quantization error)
+```
+
+**CAN raw → Hydraulic Pressure:**
+
+Both AQT1 (front, 0x710) and AQT7 (rear, 0x770) use the same encoding:
+```
+CAN raw = pressure_bar / 0.1, packed as 16-bit little-endian
+Examples: 0 bar → 0x0000, 30 bar → 0x012C, 50 bar → 0x01F4
+```
+
+AQT7 (rear): 2-byte frame, single signal `rear_brk_press`
+AQT1 (front): 3-byte frame, `frt_brk_press` in bytes [0:1], `res`(bit0) and `bots`(bit1) in byte[2]
+
+#### Class API
+
+| Method | Purpose |
+|--------|---------|
+| `set_can_pressure(bar)` | Rear CAN (0x770) hydraulic |
+| `set_adc_pressure(bar)` | Rear DAC2 → PA5 pneumatic |
+| `set_pressures(hyd, pneu)` | Both rear paths |
+| `set_front_can_pressure(bar)` | Front CAN (0x710) hydraulic |
+| `set_front_adc_pressure(bar)` | Front DAC1 → PA4 pneumatic |
+| `set_front_pressures(hyd, pneu)` | Both front paths |
+| `set_startup_conditions(pneu=8.0)` | Sets BOTH rear+front to valid startup state |
+| `set_front_startup_conditions(pneu=8.0)` | Front-only startup state |
+| `ramp_can_pressure(start, end, dur)` | Rear CAN ramp |
+| `ramp_front_can_pressure(start, end, dur)` | Front CAN ramp |
+| `ramp_adc_pressure(start, end, dur)` | Rear DAC2 ramp |
+| `ramp_front_adc_pressure(start, end, dur)` | Front DAC1 ramp |
+| `apply_waveform(..., domain='front'|'rear')` | Periodic waveforms on DACs |
+| `set_dac_direct(ch, val)` | Raw DAC write |
+| `get_status()` / `close()` | HIL management |
+
+#### ACU Startup Correlation Checks
+
+| Check | Pneumatic Range | Hydraulic Correlation |
+|-------|----------------|----------------------|
+| Front (PRESSURE_CHECK1) | 6–10 bar | hydraulic ≥ 9.0 × pneumatic |
+| Rear initial (PRESSURE_CHECK1) | 6–10 bar | hydraulic ≥ 3.8 × pneumatic |
+| Rear final (post-solenoid) | 6–10 bar | hydraulic ≥ 3.0 × pneumatic |
+
+#### Backward Compatibility
+
+- `RearPressureSim` alias preserved: `from pressure_sim import RearPressureSim` still works
+- All original `RearPressureSim` method signatures unchanged
+- Old `rear_pressure_sim.py` kept as deprecation shim in esp32_hil project
+
+### files changed this session
+- `scripts/pressure_sim.py` — NEW: unified front+rear pressure simulator (1256 lines)
+- `last_session.md` — Updated with this entry
+
+### complete
+- Front and rear pressure simulation via CAN (AQT1 0x710, AQT7 0x770) and DAC (GPIO25, GPIO26)
+- Conversion math fully documented with worked examples
+- CLI with 8-step interactive demo
+- All 16 existing host-based tests unchanged and passing
+
+### incomplete
+- AQT1 front CAN decoding not yet implemented in ACU firmware `dbc_decode()` (only AQT7 is decoded in APP.c)
+- VCU_HV (0x81) front brake pressure not yet simulated (uint8_t, scale 1)
+- `scripts/run_sim.sh` convenience launcher not yet created
+
+### 2026-06-25 (continued) — Keepalive thread + Failsafe margins
+
+#### Keepalive thread added
+- **`start_keepalive(hydraulic_bar=30.0, pneumatic_bar=8.0, interval_ms=500)`** — starts a daemon thread that re-sends both DAC values (DAC1→front PA4, DAC2→rear PA5) and both CAN frames (AQT1 0x710 front, AQT7 0x770 rear) at a configurable interval.
+- **`stop_keepalive()`** — signals the thread to stop and joins it (2s timeout).
+- Default interval: **500 ms** (well under the 1000 ms ACU `MAX_TIMEOUT` for rear pressure).
+- Thread uses `threading.Event().wait(timeout)` for responsive Ctrl+C shutdown.
+- `close()` now calls `stop_keepalive()` before closing the HIL serial port.
+
+#### CLI keepalive mode
+```
+python3 scripts/pressure_sim.py --port /dev/ttyUSB0 --keepalive
+                               [--keepalive-hyd 30.0]
+                               [--keepalive-pneu 8.0]
+                               [--keepalive-interval 500]
+```
+Runs until Ctrl+C, printing DAC status every 5 seconds.
+
+#### Failsafe margins added
+All pressure thresholds now include safety margins to guarantee ACU checks pass:
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `SAFETY_MARGIN_BAR` | 0.2 bar | Keep pneumatics away from strict IN_RANGE (>6, <10) edges |
+| `HYDRAULIC_MARGIN_PCT` | 1.05 (5%) | Extra above correlation gain |
+| `HYDRAULIC_MARGIN_FIXED` | 0.5 bar | Fixed extra bar added after percentage |
+| `UNLOADED_SAFE_BAR` | 0.5 bar | Well below ≤1.0 bar unloaded threshold |
+
+Hydraulic formula: `target_bar = pneumatic × gain × 1.05 + 0.5`, then `ceil(... × 10) / 10` (round up to 0.1).
+
+#### Saturation warning
+`set_adc_pressure()` and `set_front_adc_pressure()` now warn if bar exceeds `MAX_PNEUMATIC_BAR` (10 bar).
+
+### files changed this session
+- `scripts/pressure_sim.py` — Added: keepalive thread, failsafe margins, saturation warnings, CLI keepalive mode
+- `last_session.md` — Updated with this entry
+
+### complete
+- Background keepalive thread maintains ACU in continuous monitoring indefinitely
+- All threshold values have 5%+0.5bar margin above correlation minimums
+- CLI `--keepalive` mode runs until Ctrl+C with periodic status
+- unloaded pressure set to 0.5 bar (safe below 1.0 bar limit)
+
+### incomplete
+- No BLE telemetry parsing in the simulator (could read back ACU state from BLE packets)
+- AQT1 front CAN decoding not yet implemented in ACU firmware `dbc_decode()`
+- `scripts/run_sim.sh` convenience launcher not yet created
+
+### 2026-06-25 (continued) — Automatic Startup Sequencer
+
+#### Sequenciador automático de 8 estágios
+- **`run_startup_sequence(pneumatic_bar=8.0) → bool`** — percorre os 8 estágios de startup do ACU automaticamente.
+- O ACU controla GPIOs (SDC, ignição) autonomamente; o script fornece estímulos CAN + DAC em cada estágio.
+- Polling de CAN frames do ACU (ID 0x51) para detetar EMERGENCY ou READY.
+
+#### Como usar
+```bash
+python3 scripts/pressure_sim.py --port /dev/ttyUSB0 --sequence
+python3 scripts/pressure_sim.py --port /dev/ttyUSB0 --sequence --sequence-pneu 7.5
+```
+
+#### Frames CAN que o script envia durante a sequência
+
+| CAN ID | Name | Propósito | Frequência |
+|--------|------|-----------|------------|
+| 0x770 | AQT7 | Pressão hidráulica traseira | 500ms (keepalive) |
+| 0x710 | AQT1 | Pressão hidráulica dianteira | 500ms (keepalive) |
+| 0x600 | VCU_IGN_R2_D | Ignição auto=1 (HV_ACTIVATION) | A cada ciclo |
+| 0x61 | JETSON | AS state = OFF,previne timeout | 2s |
+| 0x191 | RES | Sinal RES, previne timeout | 2s |
+| 0x2968 | CubeMars_Feedback | Previne timeout do atuador | 2s |
+
+#### Decoding ACU status frame (ID 0x51, 8 bytes)
+```
+Byte 0: [3:0] = assi_state, [7:4] = acu_state (0=Start,1=IDLE,2=AS_ON,3=EMERGENCY)
+Byte 1: acu_cpu_temp
+Byte 2: [2:0] = mission, [5:3] = as_state (1=OFF,2=READY,4=EMERGENCY), [6]=emergency, [7]=asms
+Byte 3: [0]=ign, [7:1]=emergency_cause
+```
+
+#### Sequência temporal
+| Tempo | Stage | Ação do script |
+|-------|-------|----------------|
+| 0-2s | 0-1 (WDT) | Apenas keepalive, aguarda SDC GPIO |
+| 2-8s | 2-3 (PNEUMATIC+PRESSURE1) | Pneumáticas válidas, correlação hidráulica enviada |
+| 3s+ | 4 (HV_ACTIVATION) | Envia VCU_IGN_R2_D com ignition_auto=1 |
+| 8-12s | 5 (PRESSURE_CHECK_FRONT) | Baixa hidráulico traseiro para 0.5 bar |
+| 12-16s | 6 (PRESSURE_CHECK_REAR) | Restaura traseiro, baixa dianteiro para 0.5 bar |
+| 16s+ | 7 (PRESSURE_CHECK2) | Restaura ambos, aguarda READY |
+
+#### Tráfego CAN desconhecido
+- Todas as frames com ID não reconhecido são silenciosamente ignoradas
+- `get_can_messages()` envolto em try/except → lista vazia em caso de erro
+- `_decode_acu_frame()` retorna None se dados < 8 bytes
+
+### files changed this session
+- `scripts/pressure_sim.py` — Added: sequenciador automático, keepalive dinâmico, decodificação ACU CAN, frames de keepalive para outros ECUs
+- `last_session.md` — Updated with this entry
+
+### complete
+- Sequenciador automático de 8 estágios implementado e funcional
+- Tráfego CAN desconhecido tratado graciosamente (ignorado)
+- Keepalive dinâmico permite trocar pressões sem reiniciar thread
+- Todas as frames de keepalive para VCU, Jetson, RES, CubeMars enviadas
+- CLI `--sequence` mode para uso direto
+
+### incomplete
+- Leitura de telemetria BLE para diagnóstico (byte 14 = startup_sequence_state)
+- Integração com o test runner do projeto (tests/run_tests.sh)
+- `scripts/run_sim.sh` convenience launcher
