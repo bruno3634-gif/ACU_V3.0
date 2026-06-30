@@ -20,6 +20,7 @@ uint8_t ASSI_leds_control_signal = 0;
 float temporary_temp = 0;
 
 Main_state_machine_t Vehicle_state_machine;
+cant_acu_state_t ACU_STATE;
 Autonomous_System_states_t Autonomous_state;
 startup_sequence_state_t startup_sequence_state;
 Emergency_cause_t Emergency_cause = NONE;
@@ -69,6 +70,7 @@ void app_init() {
 
 	Vehicle_state_machine = Start;
 	 Autonomous_state = OFF;
+	 ACU_STATE = INIT;
 	 startup_sequence_state = WDT_TOGGLE_CHECK;
 
 

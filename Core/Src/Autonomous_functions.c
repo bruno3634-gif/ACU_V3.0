@@ -7,6 +7,9 @@
 
 #include "Autonomous_functions.h"
 #include "hardware_abstraction.h"
+#include "main.h"
+
+extern cant_acu_state_t ACU_STATE;
 
 #define TIMEOUT_WDT_MS         5000
 #define TIMEOUT_SOLENOID_MS    5000
@@ -29,6 +32,7 @@ static uint32_t state_timer = 0;
 void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Main_state_machine_t *Vehicle_state_machine) {
 	switch (*seq_status) {
 		case WDT_TOGGLE_CHECK:
+			ACU_STATE = INIT_SEQUENCE;
 			if (t24->SDC_feedback == 0) {
 				t24->HW_WDT_Enable = 0;
 				state_timer = millis();
@@ -135,6 +139,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_FINAL)
 				&& IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)) {
 				t24->Autonomous_State = AS_STATE_READY;
+				ACU_STATE = READY;
 			} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
 				*seq_status = SEQUENCE_ERROR;
 			}

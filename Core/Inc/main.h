@@ -191,6 +191,19 @@ typedef enum {
 } Main_state_machine_t;
 
 
+typedef enum {
+	INIT,
+	MISSION_SELECT,
+	JETSON_WAITING,
+	INIT_SEQUENCE,
+	READY,
+	DRIVING,
+	EBS_ERROR,
+	ACU_EMERGENCY,
+	FINISHED,
+	ACU_MANUAL
+} cant_acu_state_t;
+
 
 typedef enum {
 	OFF,

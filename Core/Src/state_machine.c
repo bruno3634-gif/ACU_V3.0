@@ -1,8 +1,10 @@
 #include "state_machine.h"
+#include "main.h"
 
 /* ── Mission-mismatch debounce state (file-scope so it can be reset on re-entry) ── */
 static uint32_t mismatch_tick    = 0;
 static uint8_t  mismatch_active  = 0;
+extern cant_acu_state_t ACU_STATE;
 
 void Handle_autonomous_state() {
 	switch (Autonomous_state) {
@@ -14,6 +16,9 @@ void Handle_autonomous_state() {
 		}
 		break;
 	case Monitor_sequence:
+		if(t24.Autonomous_State == AS_STATE_DRIVING){
+			ACU_STATE = DRIVING;
+		}
 		continuous_monitoring(t24.SDC_feedback,
 			t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,
 			t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
@@ -29,6 +34,7 @@ void Handle_autonomous_state() {
 		}
 		if(t24.Autonomous_State == AS_STATE_FINISHED){
 			Autonomous_state = Finish;
+			ACU_STATE = FINISHED;
 		}
 		break;
 	case Finish:
@@ -48,6 +54,7 @@ void Handle_autonomous_state() {
 		break;
 	case AS_Emergency:
 		Vehicle_state_machine = EMERGENCY;
+		ACU_STATE = ACU_EMERGENCY;
 		break;
 	default:
 		Vehicle_state_machine = EMERGENCY;
@@ -77,6 +84,7 @@ void Handle_state(uint8_t prev_asms_state) {
 		break;
 	case IDLE:
 		as_on_first_time = 0;
+		ACU_STATE = MISSION_SELECT;
 		if (t24.ASMS == 1 && prev_asms_state == 0
 				&& t24.ignition_pin_state == 0) {
 			Vehicle_state_machine = AS_ON;
