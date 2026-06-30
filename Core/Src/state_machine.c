@@ -18,6 +18,8 @@ void Handle_autonomous_state() {
 	case Monitor_sequence:
 		if(t24.Autonomous_State == AS_STATE_DRIVING){
 			ACU_STATE = DRIVING;
+			t24.front_solenoid = 1;
+			t24.rear_solenoid = 1;
 		}
 		continuous_monitoring(t24.SDC_feedback,
 			t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,

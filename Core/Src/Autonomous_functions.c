@@ -130,7 +130,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			break;
 
 		case PRESSURE_CHECK2:
-			t24->front_solenoid = 0;
+			t24->front_solenoid = 1;
 			t24->rear_solenoid = 0;
 #if SKIP_PRESSURE_CHECK2
 			t24->Autonomous_State = AS_STATE_READY;
@@ -140,12 +140,15 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 				&& IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)) {
 				t24->Autonomous_State = AS_STATE_READY;
 				ACU_STATE = READY;
+				t24->front_solenoid = 0;
+				t24->rear_solenoid = 0;
 			} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
 				*seq_status = SEQUENCE_ERROR;
 			}
 			break;
 
 		case SEQUENCE_ERROR:
+			ACU_STATE = EBS_ERROR;
 			*Vehicle_state_machine = EMERGENCY;
 			break;
 
