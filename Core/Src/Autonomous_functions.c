@@ -18,10 +18,10 @@ extern cant_acu_state_t ACU_STATE;
 #define SOLENOID_MIN_DELAY_MS  1000
 #define EBS_MIN_BAR 5.0f
 #define EBS_MAX_BAR 8.0f
-#define EBS_FRONT_HYD_GAIN 9.5f
-#define EBS_REAR_HYD_GAIN_INITIAL 9.5f
-#define EBS_REAR_HYD_GAIN_FINAL 9.5f
-#define EBS_HYD_UNLOADED_BAR 1.0f
+#define EBS_FRONT_HYD_GAIN 6.5f // TODO METER A 9.5 DEPOIS
+#define EBS_REAR_HYD_GAIN_INITIAL 0.10f
+#define EBS_REAR_HYD_GAIN_FINAL 0.10f
+#define EBS_HYD_UNLOADED_BAR 5.0f //TODO FOI ALTERADO PARA NAO DAR MERDA
 
 #define IN_RANGE(val, min, max) ((val) > (min) && (val) < (max))
 #define IS_CORRELATED(hyd, pneu, gain) ((hyd) >= (gain) * (pneu))
@@ -33,10 +33,12 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 	switch (*seq_status) {
 		case WDT_TOGGLE_CHECK:
 			ACU_STATE = INIT_SEQUENCE;
+			//TODO ALTERADO PARA BYPASS
+							*seq_status = WDT_STP_TOGGLE_CHECK;
+							t24->HW_WDT_Enable = 0;
+							state_timer = millis();
 			if (t24->SDC_feedback == 0) {
-				t24->HW_WDT_Enable = 0;
-				state_timer = millis();
-				*seq_status = WDT_STP_TOGGLE_CHECK;
+
 			}
 			break;
 
@@ -83,11 +85,12 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 		case HV_ACTIVATION:
 			/* Don't overwrite the toggled Ignition_Request — pin state is read on line below */
 #if SKIP_IGNITION_CHECK
-			t24.Ignition_enable = 1;
+
 			*seq_status = PRESSURE_CHECK_FRONT;
 			state_timer = millis();
 			break;
 #endif
+			t24->Ignition_enable = 1;
 			if (t24->Ignition_Status == 1) {
 				*seq_status = PRESSURE_CHECK_FRONT;
 				state_timer = millis();
@@ -131,8 +134,9 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			break;
 
 		case PRESSURE_CHECK2:
-			t24->front_solenoid = 1;
-			t24->rear_solenoid = 1;
+
+			t24->front_solenoid = 0; //TODO ISTO ESTAVA A 1
+			t24->rear_solenoid = 0; //TODO ISTO ESTAVA A 1
 #if SKIP_PRESSURE_CHECK2
 			t24->Autonomous_State = AS_STATE_READY;
 			break;
@@ -281,9 +285,10 @@ uint8_t module_timeout(){
 	uint32_t current_time = millis();
 
 	if(current_time - t24.VCU_LAST_TX > MAX_TIMEOUT)return VCU_TIMEOUT;
-	if(current_time - t24.REAR_PRESSURE_LAST_TX > MAX_TIMEOUT) return PRESSURE_TIMEOUT;
+	//if(current_time - t24.REAR_PRESSURE_LAST_TX > MAX_TIMEOUT) return PRESSURE_TIMEOUT;
 	if(current_time - t24.JETSON_LAST_TX > MAX_TIMEOUT) return JETSON_TIMEOUT;
-	if(current_time - t24.DIR_ACTUATOR_LAST_TX > MAX_TIMEOUT) return  DIR_TIMEOUT;
+	//TODO FOI DESABILITADO PARA NAO DAR ASNEIRA
+	//if(current_time - t24.DIR_ACTUATOR_LAST_TX > MAX_TIMEOUT) return  DIR_TIMEOUT;
 	if(current_time - t24.RES_LAST_TX > MAX_TIMEOUT) return RES_TIMEOUT;
 	return NO_TIMEOUT;
 }

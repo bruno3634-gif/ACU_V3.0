@@ -4,6 +4,8 @@
 /* ── Mission-mismatch debounce state (file-scope so it can be reset on re-entry) ── */
 static uint32_t mismatch_tick    = 0;
 static uint8_t  mismatch_active  = 0;
+static uint32_t ready_tick       = 0;
+static uint8_t  ready_timer_active = 0;
 uint8_t activate_res = 0;
 extern cant_acu_state_t ACU_STATE;
 
@@ -13,7 +15,15 @@ void Handle_autonomous_state() {
 		mismatch_active = 0;  /* reset mismatch debounce on fresh startup cycle */
 		initial_sequence(&t24, &startup_sequence_state, &Vehicle_state_machine);
 		if (t24.Autonomous_State == AS_STATE_READY) {
-			Autonomous_state = Monitor_sequence;
+			if (!ready_timer_active) {
+				ready_timer_active = 1;
+				ready_tick = millis();
+			} else if (millis() - ready_tick >= 500) {
+				Autonomous_state = Monitor_sequence;
+				ready_timer_active = 0;
+			}
+		} else {
+			ready_timer_active = 0;
 		}
 		break;
 	case Monitor_sequence:
