@@ -16,11 +16,11 @@ extern cant_acu_state_t ACU_STATE;
 // Note: HV activation has no timeout in the flowchart (old version waits indefinitely)
 // #define TIMEOUT_HV_MS          5000
 #define SOLENOID_MIN_DELAY_MS  1000
-#define EBS_MIN_BAR 6.0f
-#define EBS_MAX_BAR 10.0f
-#define EBS_FRONT_HYD_GAIN 9.0f
-#define EBS_REAR_HYD_GAIN_INITIAL 3.8f
-#define EBS_REAR_HYD_GAIN_FINAL 3.0f
+#define EBS_MIN_BAR 5.0f
+#define EBS_MAX_BAR 8.0f
+#define EBS_FRONT_HYD_GAIN 9.5f
+#define EBS_REAR_HYD_GAIN_INITIAL 9.5f
+#define EBS_REAR_HYD_GAIN_FINAL 9.5f
 #define EBS_HYD_UNLOADED_BAR 1.0f
 
 #define IN_RANGE(val, min, max) ((val) > (min) && (val) < (max))
@@ -131,7 +131,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 
 		case PRESSURE_CHECK2:
 			t24->front_solenoid = 1;
-			t24->rear_solenoid = 0;
+			t24->rear_solenoid = 1;
 #if SKIP_PRESSURE_CHECK2
 			t24->Autonomous_State = AS_STATE_READY;
 			break;
