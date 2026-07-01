@@ -268,6 +268,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		/* Rising-edge toggle: each press flips Ignition_Request */
 		if (t24.ignition_pin_state == 1 && t24.prev_ign_pin_state == 0) {
 			t24.Ignition_Request = !t24.Ignition_Request;
+			t24.Ignition_Request &= t24.Ignition_enable;
 		}
 		t24.prev_ign_pin_state = t24.ignition_pin_state;
 		AS_data.ign = t24.Ignition_Request;

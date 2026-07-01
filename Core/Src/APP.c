@@ -67,6 +67,7 @@ void app_init() {
 	t24.Autonomous_State = AS_STATE_OFF;
 	t24.HW_WDT_Enable = 1;
 	t24.prev_ign_pin_state = 0;
+	t24.Ignition_enable = 0;
 
 
 	Vehicle_state_machine = Start;

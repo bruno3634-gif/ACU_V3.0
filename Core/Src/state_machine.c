@@ -66,6 +66,7 @@ void Handle_autonomous_state() {
 }
 
 void Handle_Emergency() {
+	t24.Ignition_enable = 0;
 	t24.HW_WDT_Enable = 0;
 	t24.Ignition_Request = 0;
 	t24.Emergency = 1;
@@ -82,10 +83,11 @@ void Handle_state(uint8_t prev_asms_state) {
 	switch (Vehicle_state_machine) {
 	case Start:
 		t24.HW_WDT_Enable = 1;
-
+		t24.Ignition_enable = 0;
 		Vehicle_state_machine = IDLE;
 		break;
 	case IDLE:
+		t24.Ignition_enable = 0;
 		as_on_first_time = 0;
 		ACU_STATE = MISSION_SELECT;
 		if (t24.ASMS == 1 && prev_asms_state == 0

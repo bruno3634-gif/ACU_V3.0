@@ -83,6 +83,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 		case HV_ACTIVATION:
 			/* Don't overwrite the toggled Ignition_Request — pin state is read on line below */
 #if SKIP_IGNITION_CHECK
+			t24.Ignition_enable = 1;
 			*seq_status = PRESSURE_CHECK_FRONT;
 			state_timer = millis();
 			break;
