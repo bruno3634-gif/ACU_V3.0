@@ -304,3 +304,30 @@ Byte 3: [0]=ign, [7:1]=emergency_cause
 - Leitura de telemetria BLE para diagnóstico (byte 14 = startup_sequence_state)
 - Integração com o test runner do projeto (tests/run_tests.sh)
 - `scripts/run_sim.sh` convenience launcher
+
+## 2026-07-01 — ASSI LED bug fixes
+
+### files changed this session
+- `Core/Src/APP.c` (line 119): Changed `ASSI_control()` call from `t24.ASSI_state` to `t24.Autonomous_State`.
+- `Core/Src/hardware_abstaction.c` (lines 42-43): Fixed bit order in `Peripheral_aquisition()` — now reads Blue pin to bit 1 and Yellow pin to bit 0, matching the convention used by `ASSI_control()` and `Peripheral_actuation()`.
+
+### context
+**Bug 1 — Wrong state variable:** `ASSI_control()` was called with `t24.ASSI_state`, which was never updated from CAN data (always 0). The variable actually set by Jetson CAN frame decode was `t24.Autonomous_State`. Since `0` does not match any `AS_STATE_t` enum value (which start at `AS_STATE_OFF = 1`), the switch in `ASSI_control()` always hit `default: break;` and the LEDs stayed off.
+
+**Bug 2 — Swapped bit order in GPIO read:** `Peripheral_aquisition()` read the Yellow pin into bit 1 (`<< 1`) and the Blue pin into bit 0, but the rest of the codebase uses bit 0 for Yellow and bit 1 for Blue. This broke the XOR-based toggle in `ASSI_control()` for flashing states (DRIVING, EMERGENCY), because the toggle was operating on the wrong bit relative to the actual LED state.
+
+### additional findings (not fixed this session)
+1. `Autonomous_functions.c:249,256` — Flash timing uses 330 ms per half-cycle, giving 1.5 Hz flash frequency. The T 14.8 spec requires 2–5 Hz. Should be ≤250 ms per half-cycle.
+2. `state_machine.c:49` — `t24.ASSI_state = 4` hardcoded in Finish state. Value 4 = `AS_STATE_EMERGENCY`, but the correct telemetry for Finished should be `AS_STATE_FINISHED = 5`. This only affects telemetry fields (`AS_data.assi_state`, `pkt.assi_status`, BLE text log), not the physical ASSI LEDs (which now use `t24.Autonomous_State`).
+3. `APP.c:122-123` — `dbc_decode()` runs after `ASSI_control()`, so CAN-updated `t24.Autonomous_State` takes one extra superloop iteration (~100 µs) to reach the ASSI. Acceptable delay.
+
+### test suite status
+- 13/13 tests still pass (unchanged — no new tests added for ASSI)
+
+### Additional fix (same session)
+- `Core/Src/state_machine.c` (line 49): Changed `t24.ASSI_state = 4;` → `t24.ASSI_state = AS_STATE_FINISHED;`. Magic number `4` mapped to `AS_STATE_EMERGENCY` in telemetry. Now uses named enum constant `AS_STATE_FINISHED` (value 5), so CAN/BLE telemetry correctly reports solid blue instead of blue flashing. The physical ASSI LEDs are unaffected (they use `t24.Autonomous_State`).
+
+### incomplete (carried forward)
+- Flash timing below 2 Hz spec (see finding 1 above)
+- Telemetry `ASSI_state` value mismatch in Finish state (see finding 2 above)
+- All previously listed incomplete items from prior sessions

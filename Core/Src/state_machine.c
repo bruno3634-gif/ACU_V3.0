@@ -46,7 +46,7 @@ void Handle_autonomous_state() {
 		 */
 		if (t24.rpm <= 10) {
 			if (t24.ASMS == 0) {
-				t24.ASSI_state = 4;
+				t24.ASSI_state = AS_STATE_FINISHED;
 				t24.front_solenoid = 0;
 				t24.rear_solenoid = 0;
 				if(!t24.ASMS){
