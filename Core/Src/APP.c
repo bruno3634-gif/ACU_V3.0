@@ -116,7 +116,7 @@ void app() {
 	toggle_wdt();
 	//handle_uart_logs();
 	LED_indicator_controller();
-	ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);
+	ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.Autonomous_State);
 	Peripheral_actuation();
 	handle_can_tx();
 	can_buffer_pop(&can_rx_ringbuffer, 0,&can_rx_data);
