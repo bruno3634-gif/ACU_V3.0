@@ -116,7 +116,7 @@ void app() {
 	toggle_wdt();
 	//handle_uart_logs();
 	LED_indicator_controller();
-	ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.ASSI_state);
+	ASSI_leds_control_signal = ASSI_control(ASSI_leds_control_signal, t24.Autonomous_State);
 	Peripheral_actuation();
 	handle_can_tx();
 	can_buffer_pop(&can_rx_ringbuffer, 0,&can_rx_data);
@@ -197,7 +197,15 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_AQT1_FRAME_ID:
 			struct autonomous_t26_aqt1_t front_dynamics;
 			autonomous_t26_aqt1_unpack(&front_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT1_LENGTH);
+#if BYPASS_FRONT_HYD_PRESSURE
+			// TEST BYPASS: ignore the CAN reading, synthesize a value consistent with
+			// rear_solenoid (which physically locks/releases the front line) instead.
+			t24.Front_Pressure.Hydraulic = t24.rear_solenoid
+					? BYPASS_FRONT_HYD_PRESSURE_UNLOADED
+					: BYPASS_FRONT_HYD_PRESSURE_LOADED;
+#else
 			t24.Front_Pressure.Hydraulic = autonomous_t26_aqt1_frt_brk_press_decode(front_dynamics.frt_brk_press);
+#endif
 			//t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 			break;
 	case AUTONOMOUS_T26_VCU_IGN_R2_D_FRAME_ID:

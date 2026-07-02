@@ -15,13 +15,13 @@ extern cant_acu_state_t ACU_STATE;
 #define TIMEOUT_SOLENOID_MS    5000
 // Note: HV activation has no timeout in the flowchart (old version waits indefinitely)
 // #define TIMEOUT_HV_MS          5000
-#define SOLENOID_MIN_DELAY_MS  1000
+#define SOLENOID_MIN_DELAY_MS  3000
 #define EBS_MIN_BAR 5.0f
 #define EBS_MAX_BAR 10.0f
 #define EBS_FRONT_HYD_GAIN 6.5f // TODO METER A 9.5 DEPOIS
 #define EBS_REAR_HYD_GAIN_INITIAL 0.10f
 #define EBS_REAR_HYD_GAIN_FINAL 0.10f
-#define EBS_HYD_UNLOADED_BAR 5.0f //TODO FOI ALTERADO PARA NAO DAR MERDA
+#define EBS_HYD_UNLOADED_BAR 5.5f //TODO FOI ALTERADO PARA NAO DAR MERDA
 
 #define IN_RANGE(val, min, max) ((val) > (min) && (val) < (max))
 #define IS_CORRELATED(hyd, pneu, gain) ((hyd) >= (gain) * (pneu))
@@ -139,6 +139,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status, Mai
 			t24->rear_solenoid = 0; //TODO ISTO ESTAVA A 1
 #if SKIP_PRESSURE_CHECK2
 			t24->Autonomous_State = AS_STATE_READY;
+			ACU_STATE = READY;
 			break;
 #endif
 			if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_FINAL)
