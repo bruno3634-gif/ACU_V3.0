@@ -17,7 +17,7 @@ extern cant_acu_state_t ACU_STATE;
 // #define TIMEOUT_HV_MS          5000
 #define SOLENOID_MIN_DELAY_MS  1000
 #define EBS_MIN_BAR 5.0f
-#define EBS_MAX_BAR 8.0f
+#define EBS_MAX_BAR 10.0f
 #define EBS_FRONT_HYD_GAIN 6.5f // TODO METER A 9.5 DEPOIS
 #define EBS_REAR_HYD_GAIN_INITIAL 0.10f
 #define EBS_REAR_HYD_GAIN_FINAL 0.10f
@@ -210,7 +210,7 @@ void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic,
 		return;
 	}
 
-	if (!IS_CORRELATED(Front_hydraulic, Front_pneumatic, EBS_FRONT_HYD_GAIN) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic, EBS_REAR_HYD_GAIN_FINAL)) {
+	if ((!IS_CORRELATED(Front_hydraulic, Front_pneumatic, EBS_FRONT_HYD_GAIN) || !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic, EBS_REAR_HYD_GAIN_FINAL)) && t24.Autonomous_State != AS_STATE_DRIVING) {
 		Vehicle_state_machine = EMERGENCY;
 		return;
 	}
