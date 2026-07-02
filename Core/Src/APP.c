@@ -210,7 +210,12 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_JETSON_FRAME_ID:
 		struct autonomous_t26_jetson_t jetson_data;
 		autonomous_t26_jetson_unpack(&jetson_data, can_rx_data.tx_data,AUTONOMOUS_T26_JETSON_LENGTH);
-		t24.Autonomous_State = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+		{
+			volatile uint8_t decoded_state = autonomous_t26_jetson_as_state_decode(jetson_data.as_state);
+			if (decoded_state == AS_STATE_DRIVING || decoded_state == AS_STATE_FINISHED || decoded_state == AS_STATE_EMERGENCY) {
+				t24.Autonomous_State = decoded_state;
+			}
+		}
 		t24.Jetson_mission = autonomous_t26_jetson_as_mission_decode(jetson_data.as_mission);
 		t24.JETSON_LAST_TX = HAL_GetTick();
 		break;
