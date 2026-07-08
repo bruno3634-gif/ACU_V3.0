@@ -77,7 +77,6 @@ ema_data_structure ema_front_pressure;
 
 extern uint8_t activate_res;
 
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -107,109 +106,104 @@ float GetTemperature(uint16_t raw_temp, uint16_t raw_vref);
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
+	/* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
+	/* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE BEGIN Init */
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+	/* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_CAN1_Init();
-  MX_TIM8_Init();
-  MX_USART2_UART_Init();
-  MX_I2C1_Init();
-  MX_TIM2_Init();
-  MX_USART1_UART_Init();
-  MX_RTC_Init();
-  /* USER CODE BEGIN 2 */
-	HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE);  /* will be overridden by ble_handler_init() */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_DMA_Init();
+	MX_ADC1_Init();
+	MX_CAN1_Init();
+	MX_TIM8_Init();
+	MX_USART2_UART_Init();
+	MX_I2C1_Init();
+	MX_TIM2_Init();
+	MX_USART1_UART_Init();
+	MX_RTC_Init();
+	/* USER CODE BEGIN 2 */
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t*) rx_buffer, RX_BUFFER_SIZE); /* will be overridden by ble_handler_init() */
 	uint32_t state = huart2.RxState;  // should be 0x22 (BUSY_RX)
 	uint32_t dma_ndtr = hdma_usart2_rx.Instance->NDTR;
 	ema_init(&ema_front_pressure, 0.5f);
 	ema_init(&ema_rear_pressure, 0.5f);
 	app_init();
 
-  /* USER CODE END 2 */
+	/* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
 	while (1) {
-    /* USER CODE END WHILE */
+		/* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+		/* USER CODE BEGIN 3 */
 		app();
 	}
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void) {
+	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 
-  /** Configure the main internal regulator output voltage
-  */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	/** Configure the main internal regulator output voltage
+	 */
+	__HAL_RCC_PWR_CLK_ENABLE();
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.LSEState = RCC_LSE_BYPASS;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 70;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 5;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI | RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.LSEState = RCC_LSE_BYPASS;
+	RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 4;
+	RCC_OscInitStruct.PLL.PLLN = 70;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+	RCC_OscInitStruct.PLL.PLLQ = 5;
+	RCC_OscInitStruct.PLL.PLLR = 2;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+		Error_Handler();
+	}
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+		Error_Handler();
+	}
 }
 
 /* USER CODE BEGIN 4 */
@@ -273,7 +267,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		t24.prev_ign_pin_state = t24.ignition_pin_state;
 		AS_data.ign = t24.Ignition_Request;
 		AS_data.mission_select = t24.Current_Mission;
-		AS_data.acu_state = (uint8_t)Vehicle_state_machine;
+		AS_data.acu_state = (uint8_t) Vehicle_state_machine;
 		AS_data.emergency_cause = Emergency_cause;
 
 		autonomous_t26_acu_pack(tx_data, &AS_data, AUTONOMOUS_T26_ACU_LENGTH);
@@ -309,7 +303,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 
-		if (activate_res == 1){
+		if (activate_res == 1) {
 			can_tx_header.StdId = 0x00;
 			can_tx_header.RTR = CAN_RTR_DATA;
 			can_tx_header.DLC = 2;
@@ -317,34 +311,50 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			tx_data[1] = 0;
 			add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 			activate_res = 0;
-		}else if(activate_res == 2){
-
+		} else if (activate_res == 2) {
+			can_tx_header.StdId = 0x00;
+			can_tx_header.RTR = CAN_RTR_DATA;
+			can_tx_header.DLC = 2;
+			tx_data[0] = 0;
+			tx_data[1] = 0;
+			add_can_message(TX_MAILBOX, can_tx_header, tx_data);
+			activate_res = 0;
 		}
 
 		/* ── BLE telemetry: 15-byte binary packet via ble_handler ── */
 		if (!ble_module_config_is_done()) {
-		    return;
+			return;
 		}
 		if (ble_tx_busy) {
-		    return;                 /* still sending previous packet, skip this tick */
+			return; /* still sending previous packet, skip this tick */
 		}
 		static ble_telemetry_packet_t pkt;
-		pkt.state_machine      = (uint8_t)Vehicle_state_machine;
-		pkt.assi_status        = t24.ASSI_state;
-		pkt.mission            = (uint8_t)t24.Current_Mission;
-		{   float _v = t24.Front_Pressure.Hydraulic * 100.0f;
-		    pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		{   float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
-		    pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		{   float _v = t24.Front_Pressure.Pneumatic * 100.0f;
-		    pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		{   float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
-		    pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t)_v; }
-		{   float _v = t24.chip_temp * 100.0f;
-		    pkt.chip_temp = (_v > 32767.0f) ? 32767 : (_v < -32768.0f) ? -32768 : (int16_t)_v; }
-		pkt.solenoid_front   = t24.front_solenoid;
-		pkt.solenoid_rear    = t24.rear_solenoid;
-		ble_send_binary((uint8_t*)&pkt, sizeof(pkt));
+		pkt.state_machine = (uint8_t) Vehicle_state_machine;
+		pkt.assi_status = t24.ASSI_state;
+		pkt.mission = (uint8_t) t24.Current_Mission;
+		{
+			float _v = t24.Front_Pressure.Hydraulic * 100.0f;
+			pkt.hydraulic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t) _v;
+		}
+		{
+			float _v = t24.Rear_Pressure.Hydraulic * 100.0f;
+			pkt.hydraulic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t) _v;
+		}
+		{
+			float _v = t24.Front_Pressure.Pneumatic * 100.0f;
+			pkt.pneumatic_p1 = (_v > 65535.0f) ? 65535 : (uint16_t) _v;
+		}
+		{
+			float _v = t24.Rear_Pressure.Pneumatic * 100.0f;
+			pkt.pneumatic_p2 = (_v > 65535.0f) ? 65535 : (uint16_t) _v;
+		}
+		{
+			float _v = t24.chip_temp * 100.0f;
+			pkt.chip_temp = (_v > 32767.0f) ? 32767 : (_v < -32768.0f) ? -32768 : (int16_t) _v;
+		}
+		pkt.solenoid_front = t24.front_solenoid;
+		pkt.solenoid_rear = t24.rear_solenoid;
+		ble_send_binary((uint8_t*) &pkt, sizeof(pkt));
 	}
 }
 
@@ -390,17 +400,16 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
+	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1) {
 	}
-  /* USER CODE END Error_Handler_Debug */
+	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
