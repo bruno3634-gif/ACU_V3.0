@@ -105,6 +105,9 @@ void Handle_state(uint8_t prev_asms_state) {
 			activate_res = 1;
 			Vehicle_state_machine = AS_ON;
 			as_on_first_time = 0;
+		}else if(t24.ASMS == 0 && prev_asms_state == 1){
+			activate_res = 2;
+			Vehicle_state_machine = Start;
 		}
 		break;
 	case AS_ON:

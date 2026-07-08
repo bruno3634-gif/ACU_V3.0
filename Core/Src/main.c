@@ -309,7 +309,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 		add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 
-		if (activate_res){
+		if (activate_res == 1){
 			can_tx_header.StdId = 0x00;
 			can_tx_header.RTR = CAN_RTR_DATA;
 			can_tx_header.DLC = 2;
@@ -317,6 +317,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			tx_data[1] = 0;
 			add_can_message(TX_MAILBOX, can_tx_header, tx_data);
 			activate_res = 0;
+		}else if(activate_res == 2){
+
 		}
 
 		/* ── BLE telemetry: 15-byte binary packet via ble_handler ── */

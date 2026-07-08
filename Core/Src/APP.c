@@ -107,7 +107,7 @@ void app_init() {
 }
 
 void app() {
-	t24.HW_WDT_Enable
+	//TODO: if HV and ASMS = 0, Mission = Manual
 	ble_module_config_tick();
 	ble_handler();
 	prev_ASMS = t24.ASMS;
