@@ -192,16 +192,25 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_AQT7_FRAME_ID:
 		struct autonomous_t26_aqt7_t rear_dynamics;
 		autonomous_t26_aqt7_unpack(&rear_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT7_LENGTH);
-		t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
+		//t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
 		t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 		break;
 	case AUTONOMOUS_T26_AQT1_FRAME_ID:
 			struct autonomous_t26_aqt1_t front_dynamics;
 			autonomous_t26_aqt1_unpack(&front_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT1_LENGTH);
+#if BYPASS_REAR_HYD_PRESSURE
+			// TEST BYPASS: ignore the CAN reading, synthesize a value consistent with
+			// rear_solenoid (which physically locks/releases the front line) instead.
+			t24.Rear_Pressure.Hydraulic = t24.rear_solenoid
+					? BYPASS_FRONT_HYD_PRESSURE_UNLOADED
+					: BYPASS_FRONT_HYD_PRESSURE_LOADED;
+#else
+			t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
+#endif
 #if BYPASS_FRONT_HYD_PRESSURE
 			// TEST BYPASS: ignore the CAN reading, synthesize a value consistent with
 			// rear_solenoid (which physically locks/releases the front line) instead.
-			t24.Front_Pressure.Hydraulic = t24.rear_solenoid
+			t24.Front_Pressure.Hydraulic = t24.front_solenoid
 					? BYPASS_FRONT_HYD_PRESSURE_UNLOADED
 					: BYPASS_FRONT_HYD_PRESSURE_LOADED;
 #else

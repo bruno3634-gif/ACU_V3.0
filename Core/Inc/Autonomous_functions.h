@@ -26,7 +26,9 @@
 // the rest of the pipeline. When enabled, dbc_decode() ignores the CAN value and
 // synthesizes a loaded/unloaded reading from rear_solenoid (see APP.c). Set to 0 to
 // use the real sensor.
-#define BYPASS_FRONT_HYD_PRESSURE          1
+#define BYPASS_FRONT_HYD_PRESSURE         0
+#define BYPASS_REAR_HYD_PRESSURE          1
+
 #define BYPASS_FRONT_HYD_PRESSURE_LOADED   150.0f
 #define BYPASS_FRONT_HYD_PRESSURE_UNLOADED 0.0f
 

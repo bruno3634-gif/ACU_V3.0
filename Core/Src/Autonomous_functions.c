@@ -34,13 +34,12 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 	switch (*seq_status) {
 	case WDT_TOGGLE_CHECK:
 		ACU_STATE = INIT_SEQUENCE;
-		t24->HW_WDT_Enable = 1;
 		//TODO ALTERADO PARA BYPASS
+		*seq_status = WDT_STP_TOGGLE_CHECK;
+		t24->HW_WDT_Enable = 0;
+		state_timer = millis();
+		if (t24->SDC_feedback == 0) {
 
-		if (t24->SDC_feedback == 1) {
-			*seq_status = WDT_STP_TOGGLE_CHECK;
-			t24->HW_WDT_Enable = 0;
-			state_timer = millis();
 		}
 		break;
 
@@ -50,7 +49,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 			*seq_status = PNEUMATIC_CHECK;
 			break;
 #endif
-		if (t24->SDC_feedback == 0) {
+		if (t24->SDC_feedback == 1) {
 			t24->HW_WDT_Enable = 1;
 			*seq_status = PNEUMATIC_CHECK;
 		} else if (check_timeout(state_timer, TIMEOUT_WDT_MS)) {
@@ -64,7 +63,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 			break;
 #endif
 		if (IN_RANGE(t24->Front_Pressure.Pneumatic, EBS_MIN_BAR,
-				EBS_MAX_BAR) && IN_RANGE(t24->Rear_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
+				EBS_MAX_BAR) && IN_RANGE(t24->Rear_Pressure.Pneumatic, 4, EBS_MAX_BAR)) {
 			*seq_status = PRESSURE_CHECK1;
 		} else {
 			*seq_status = SEQUENCE_ERROR;
@@ -76,7 +75,8 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 			*seq_status = HV_ACTIVATION;
 			break;
 #endif
-		if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic,
+		if (IS_CORRELATED(t24->Front_Pressure.Hydraulic,
+				t24->Front_Pressure.Pneumatic,
 				EBS_FRONT_HYD_GAIN) && IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_INITIAL)) {
 			*seq_status = HV_ACTIVATION;
 		} else {
@@ -100,15 +100,17 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 		break;
 
 	case PRESSURE_CHECK_FRONT:
-		t24->front_solenoid = 1;
-		t24->rear_solenoid = 0;
+		t24->front_solenoid = 0;
+		t24->rear_solenoid = 1;
 #if SKIP_PRESSURE_FRONT_CHECK
 			state_timer = millis();
 			*seq_status = PRESSURE_CHECK_REAR;
 			break;
 #endif
-		if (IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)
-				&& IS_UNLOADED(t24->Rear_Pressure.Hydraulic) && check_timeout(state_timer, SOLENOID_MIN_DELAY_MS)) {
+		if (IS_CORRELATED(t24->Front_Pressure.Hydraulic,
+				t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)
+				&& IS_UNLOADED(t24->Rear_Pressure.Hydraulic)
+				&& check_timeout(state_timer, SOLENOID_MIN_DELAY_MS)) {
 			*seq_status = PRESSURE_CHECK_REAR;
 			state_timer = millis();
 		} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
@@ -117,15 +119,17 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 		break;
 
 	case PRESSURE_CHECK_REAR:
-		t24->front_solenoid = 0;
-		t24->rear_solenoid = 1;
+		t24->front_solenoid = 1;
+		t24->rear_solenoid = 0;
 #if SKIP_PRESSURE_REAR_CHECK
 			state_timer = millis();
 			*seq_status = PRESSURE_CHECK2;
 			break;
 #endif
-		if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_FINAL)
-				&& IS_UNLOADED(t24->Front_Pressure.Hydraulic) && check_timeout(state_timer, SOLENOID_MIN_DELAY_MS)) {
+		if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic,
+				t24->Rear_Pressure.Pneumatic, EBS_REAR_HYD_GAIN_FINAL)
+				&& IS_UNLOADED(t24->Front_Pressure.Hydraulic)
+				&& check_timeout(state_timer, SOLENOID_MIN_DELAY_MS)) {
 			*seq_status = PRESSURE_CHECK2;
 			state_timer = millis();
 		} else if (check_timeout(state_timer, TIMEOUT_SOLENOID_MS)) {
@@ -142,7 +146,8 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 			ACU_STATE = READY;
 			break;
 #endif
-		if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic, t24->Rear_Pressure.Pneumatic,
+		if (IS_CORRELATED(t24->Rear_Pressure.Hydraulic,
+				t24->Rear_Pressure.Pneumatic,
 				EBS_REAR_HYD_GAIN_FINAL) && IS_CORRELATED(t24->Front_Pressure.Hydraulic, t24->Front_Pressure.Pneumatic, EBS_FRONT_HYD_GAIN)) {
 			t24->Autonomous_State = AS_STATE_READY;
 			ACU_STATE = READY;
@@ -206,13 +211,15 @@ void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic, float Front
 		return;
 	}
 
-	if (!IN_RANGE(Rear_pneumatic, EBS_MIN_BAR, EBS_MAX_BAR) || !IN_RANGE(Front_pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
+	if (!IN_RANGE(Rear_pneumatic, 4,
+			EBS_MAX_BAR) || !IN_RANGE(Front_pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
 		Vehicle_state_machine = EMERGENCY;
 		return;
 	}
 
 	if ((!IS_CORRELATED(Front_hydraulic, Front_pneumatic, EBS_FRONT_HYD_GAIN)
-			|| !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic, EBS_REAR_HYD_GAIN_FINAL))
+			|| !IS_CORRELATED(Rear_hydraulic, Rear_pneumatic,
+					EBS_REAR_HYD_GAIN_FINAL))
 			&& t24.Autonomous_State != AS_STATE_DRIVING) {
 		Vehicle_state_machine = EMERGENCY;
 		return;
