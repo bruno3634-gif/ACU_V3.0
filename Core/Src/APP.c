@@ -241,7 +241,7 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
 		struct autonomous_t26_vcu_rpm_t vcu_rpm;
 		autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
-		t24.rpm = autonomous_t26_vcu_rpm_rpm_actual_decode(vcu_rpm.rpm_actual);
+		t24.rpm = autonomous_t26_vcu_rpm_motor_rpm_right_encode(vcu_rpm.motor_rpm_right);
 		break;
 		case AUTONOMOUS_T26_CUBE_MARS_FEEDBACK_FRAME_ID:
 			t24.DIR_ACTUATOR_LAST_TX = HAL_GetTick();
