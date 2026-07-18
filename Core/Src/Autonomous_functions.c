@@ -63,7 +63,7 @@ void initial_sequence(struct car *t24, startup_sequence_state_t *seq_status,
 			break;
 #endif
 		if (IN_RANGE(t24->Front_Pressure.Pneumatic, EBS_MIN_BAR,
-				EBS_MAX_BAR) && IN_RANGE(t24->Rear_Pressure.Pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
+				EBS_MAX_BAR) && IN_RANGE(t24->Rear_Pressure.Pneumatic, 4, EBS_MAX_BAR)) {
 			*seq_status = PRESSURE_CHECK1;
 		} else {
 			*seq_status = SEQUENCE_ERROR;
@@ -211,7 +211,7 @@ void continuous_monitoring(uint8_t sdc_status, float Rear_pneumatic,
 		return;
 	}
 
-	if (!IN_RANGE(Rear_pneumatic, EBS_MIN_BAR,
+	if (!IN_RANGE(Rear_pneumatic, 4,
 			EBS_MAX_BAR) || !IN_RANGE(Front_pneumatic, EBS_MIN_BAR, EBS_MAX_BAR)) {
 		Vehicle_state_machine = EMERGENCY;
 		return;
