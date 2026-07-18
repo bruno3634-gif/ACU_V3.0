@@ -31,10 +31,12 @@ void Handle_autonomous_state() {
 			ACU_STATE = DRIVING;
 			t24.front_solenoid = 1;
 			t24.rear_solenoid = 1;
-		}
-		continuous_monitoring(t24.SDC_feedback,
+			//TODO METER DELAY DE 500MS PARA DAR TEMPO DE CORRELACIONAR
+			continuous_monitoring(t24.SDC_feedback,
 			t24.Rear_Pressure.Pneumatic, t24.Front_Pressure.Pneumatic,
 			t24.Rear_Pressure.Hydraulic, t24.Front_Pressure.Hydraulic);
+		}
+		
 		if (t24.Current_Mission != t24.Jetson_mission) {
 			if (!mismatch_active) {
 				mismatch_active = 1;
