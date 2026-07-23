@@ -193,19 +193,26 @@ void dbc_decode(){
 		autonomous_t26_aqt7_unpack(&rear_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT7_LENGTH);
 		//t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
 		t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
-		break;
-	case AUTONOMOUS_T26_AQT1_FRAME_ID:
-			struct autonomous_t26_aqt1_t front_dynamics;
-			autonomous_t26_aqt1_unpack(&front_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT1_LENGTH);
-#if BYPASS_REAR_HYD_PRESSURE
+		
+		#if BYPASS_REAR_HYD_PRESSURE
 			// TEST BYPASS: ignore the CAN reading, synthesize a value consistent with
 			// rear_solenoid (which physically locks/releases the front line) instead.
 			t24.Rear_Pressure.Hydraulic = t24.rear_solenoid
 					? BYPASS_FRONT_HYD_PRESSURE_UNLOADED
 					: BYPASS_FRONT_HYD_PRESSURE_LOADED;
-#else
-			t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
-#endif
+		#else
+			//t24.Rear_Pressure.Hydraulic = autonomous_t26_aqt7_rear_brk_press_decode(rear_dynamics.rear_brk_press);
+			{
+			uint16_t rear_brk_press_raw = (uint16_t)can_rx_data.tx_data[0] | ((uint16_t)can_rx_data.tx_data[1] << 8);
+			t24.Rear_Pressure.Hydraulic = (double)rear_brk_press_raw / 10.0;
+			}
+			//t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
+			break;
+		#endif
+	case AUTONOMOUS_T26_AQT1_FRAME_ID:
+			struct autonomous_t26_aqt1_t front_dynamics;
+			//autonomous_t26_aqt1_unpack(&front_dynamics, can_rx_data.tx_data, AUTONOMOUS_T26_AQT1_LENGTH);
+
 #if BYPASS_FRONT_HYD_PRESSURE
 			// TEST BYPASS: ignore the CAN reading, synthesize a value consistent with
 			// rear_solenoid (which physically locks/releases the front line) instead.
@@ -213,7 +220,11 @@ void dbc_decode(){
 					? BYPASS_FRONT_HYD_PRESSURE_UNLOADED
 					: BYPASS_FRONT_HYD_PRESSURE_LOADED;
 #else
-			t24.Front_Pressure.Hydraulic = autonomous_t26_aqt1_frt_brk_press_decode(front_dynamics.frt_brk_press);
+			//t24.Front_Pressure.Hydraulic = autonomous_t26_aqt1_frt_brk_press_decode(front_dynamics.frt_brk_press);
+			{
+			uint16_t front_brk_press_raw = (uint16_t)can_rx_data.tx_data[0] | ((uint16_t)can_rx_data.tx_data[1] << 8);
+			t24.Front_Pressure.Hydraulic = (double)front_brk_press_raw / 10.0;
+			}
 #endif
 			//t24.REAR_PRESSURE_LAST_TX = can_rx_ringbuffer.queue[can_rx_ringbuffer.tail].arrival_time;
 			break;
@@ -240,7 +251,7 @@ void dbc_decode(){
 	case AUTONOMOUS_T26_VCU_RPM_FRAME_ID:
 		struct autonomous_t26_vcu_rpm_t vcu_rpm;
 		autonomous_t26_vcu_rpm_unpack(&vcu_rpm,can_rx_data.tx_data,AUTONOMOUS_T26_VCU_RPM_LENGTH);
-		t24.rpm = autonomous_t26_vcu_rpm_rpm_actual_decode(vcu_rpm.rpm_actual);
+		//t24.rpm = autonomous_t26_vcu_rpm_motor_rpm_right_decode(vcu_rpm.motor_rpm_right);
 		break;
 		case AUTONOMOUS_T26_CUBE_MARS_FEEDBACK_FRAME_ID:
 			t24.DIR_ACTUATOR_LAST_TX = HAL_GetTick();
